@@ -19,8 +19,32 @@
   --red: #e05c5c;
 }
 
+/* Light Mode */
+.light-mode {
+  --bg: #ffffff;
+  --bg2: #f8f9fa;
+  --surface: #f1f3f5;
+  --surface2: #e9ecef;
+  --border: #dee2e6;
+  --border2: #ced4da;
+  --accent: #4f8ef7;
+  --accent2: #3b7dd6;
+  --text: #212529;
+  --text2: #495057;
+  --text3: #6c757d;
+  --green: #28a745;
+  --orange: #fd7e14;
+  --red: #dc3545;
+}
+
 body {
   background: var(--bg);
   color: var(--text);
   font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Smooth transitions for theme changes */
+* {
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
 }
