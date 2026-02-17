@@ -58,7 +58,13 @@ const SPECS = {
 
 export default function Home() {
   const [currentSpec, setCurrentSpec] = useState('neuro')
+  const [currentSubArea, setCurrentSubArea] = useState('all')
   const [currentSection, setCurrentSection] = useState('home')
+
+  const handleSpecChange = (spec: string) => {
+    setCurrentSpec(spec)
+    setCurrentSubArea('all') // Reset sub-area quando muda especialidade
+  }
 
   return (
     <div className="min-h-screen">
@@ -74,20 +80,26 @@ export default function Home() {
             </button>
             
             <nav className="flex gap-2">
-              {['home', 'resumos', 'mascaras', 'frases', 'checklist'].map(section => (
+              {[
+                { id: 'home', label: '⌂ Home' },
+                { id: 'resumos', label: '📚 Resumos' },
+                { id: 'artigos', label: '📄 Artigos' },
+                { id: 'calculadoras', label: '🧮 Calculadoras' },
+                { id: 'geradores', label: '⚙️ Geradores' },
+                { id: 'mascaras', label: '📝 Máscaras' },
+                { id: 'frases', label: '💬 Frases' },
+                { id: 'checklist', label: '✅ Checklists' }
+              ].map(section => (
                 <button
-                  key={section}
-                  onClick={() => setCurrentSection(section)}
+                  key={section.id}
+                  onClick={() => setCurrentSection(section.id)}
                   className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                    currentSection === section
+                    currentSection === section.id
                       ? 'bg-accent/20 text-accent border border-accent/30'
                       : 'text-text3 hover:text-text hover:bg-surface2'
                   }`}
                 >
-                  {section === 'home' ? '⌂ Home' : 
-                   section === 'resumos' ? '📚 Resumos' :
-                   section === 'mascaras' ? '📝 Máscaras' :
-                   section === 'frases' ? '💬 Frases' : '✅ Checklists'}
+                  {section.label}
                 </button>
               ))}
             </nav>
@@ -106,7 +118,7 @@ export default function Home() {
             {Object.entries(SPECS).map(([key, spec]) => (
               <button
                 key={key}
-                onClick={() => setCurrentSpec(key)}
+                onClick={() => handleSpecChange(key)}
                 className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
                   currentSpec === key
                     ? 'bg-accent/15 text-accent border border-accent/30'
@@ -124,13 +136,25 @@ export default function Home() {
       {currentSection !== 'home' && SPECS[currentSpec as keyof typeof SPECS].subs.length > 0 && (
         <div className="fixed top-30 left-0 right-0 h-12 bg-bg/94 backdrop-blur-md border-b border-border z-30">
           <div className="container mx-auto px-8 h-full flex items-center gap-2 overflow-x-auto">
-            <button className="px-3 py-1.5 rounded-2xl text-xs font-medium bg-accent/10 text-accent2">
+            <button 
+              onClick={() => setCurrentSubArea('all')}
+              className={`px-3 py-1.5 rounded-2xl text-xs font-medium whitespace-nowrap transition-all ${
+                currentSubArea === 'all' 
+                  ? 'bg-accent/10 text-accent2'
+                  : 'text-text3 hover:text-text hover:bg-surface'
+              }`}
+            >
               Todas
             </button>
             {SPECS[currentSpec as keyof typeof SPECS].subs.map(sub => (
               <button
                 key={sub}
-                className="px-3 py-1.5 rounded-2xl text-xs font-medium text-text3 hover:text-text hover:bg-surface whitespace-nowrap"
+                onClick={() => setCurrentSubArea(sub)}
+                className={`px-3 py-1.5 rounded-2xl text-xs font-medium whitespace-nowrap transition-all ${
+                  currentSubArea === sub
+                    ? 'bg-accent/10 text-accent2'
+                    : 'text-text3 hover:text-text hover:bg-surface'
+                }`}
               >
                 {sub}
               </button>
@@ -144,31 +168,148 @@ export default function Home() {
         <div className="container mx-auto px-8 py-12">
           
           {currentSection === 'home' && (
-            <div className="text-center max-w-4xl mx-auto">
-              <h1 className="text-6xl font-bold mb-6 bg-gradient-to-r from-accent2 to-accent bg-clip-text text-transparent">
-                RadioHub Next.js
-              </h1>
-              <p className="text-xl text-text2 mb-12">
-                Plataforma profissional de ferramentas para radiologia
-              </p>
+            <div>
+              {/* HERO SECTION */}
+              <div className="text-center max-w-4xl mx-auto mb-16">
+                <h1 className="text-6xl font-bold mb-6">
+                  Ferramentas para <span className="bg-gradient-to-r from-accent2 to-accent bg-clip-text text-transparent">radiologistas</span>
+                </h1>
+                <p className="text-xl text-text2 mb-4">
+                  Calculadoras, resumos, geradores e checklists — por especialidade, em painel lateral.
+                </p>
+                <p className="text-sm text-text3">
+                  👁️ <strong>9 visitas</strong> (local)
+                </p>
+              </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-16">
-                <div className="bg-surface border border-border rounded-xl p-8 hover:border-accent/30 transition-all">
-                  <div className="text-4xl mb-4">🔒</div>
-                  <h3 className="text-lg font-semibold mb-2">Seguro</h3>
-                  <p className="text-sm text-text2">API Keys protegidas no servidor</p>
+              {/* CARDS DE SEÇÕES */}
+              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 mb-16">
+                <button
+                  onClick={() => setCurrentSection('resumos')}
+                  className="bg-surface border border-border rounded-xl p-6 hover:border-accent/30 transition-all text-center group"
+                >
+                  <div className="text-4xl mb-3 group-hover:scale-110 transition-transform">📚</div>
+                  <div className="font-semibold text-sm mb-1">Resumos</div>
+                  <div className="text-xs text-text3">Por especialidade</div>
+                </button>
+                
+                <button
+                  onClick={() => setCurrentSection('artigos')}
+                  className="bg-surface border border-border rounded-xl p-6 hover:border-accent/30 transition-all text-center group"
+                >
+                  <div className="text-4xl mb-3 group-hover:scale-110 transition-transform">📄</div>
+                  <div className="font-semibold text-sm mb-1">Artigos</div>
+                  <div className="text-xs text-text3">Resumo de evidências</div>
+                </button>
+                
+                <button
+                  onClick={() => setCurrentSection('calculadoras')}
+                  className="bg-surface border border-border rounded-xl p-6 hover:border-accent/30 transition-all text-center group"
+                >
+                  <div className="text-4xl mb-3 group-hover:scale-110 transition-transform">🧮</div>
+                  <div className="font-semibold text-sm mb-1">Calculadoras</div>
+                  <div className="text-xs text-text3">eGFR · TI-RADS · BI-RADS</div>
+                </button>
+                
+                <button
+                  onClick={() => setCurrentSection('geradores')}
+                  className="bg-surface border border-border rounded-xl p-6 hover:border-accent/30 transition-all text-center group"
+                >
+                  <div className="text-4xl mb-3 group-hover:scale-110 transition-transform">⚙️</div>
+                  <div className="font-semibold text-sm mb-1">Geradores</div>
+                  <div className="text-xs text-text3">RM Cardíaca</div>
+                </button>
+                
+                <button
+                  onClick={() => setCurrentSection('mascaras')}
+                  className="bg-surface border border-border rounded-xl p-6 hover:border-accent/30 transition-all text-center group"
+                >
+                  <div className="text-4xl mb-3 group-hover:scale-110 transition-transform">📝</div>
+                  <div className="font-semibold text-sm mb-1">Máscaras</div>
+                  <div className="text-xs text-text3">Copie e cole no Word</div>
+                </button>
+                
+                <button
+                  onClick={() => setCurrentSection('frases')}
+                  className="bg-surface border border-border rounded-xl p-6 hover:border-accent/30 transition-all text-center group"
+                >
+                  <div className="text-4xl mb-3 group-hover:scale-110 transition-transform">💬</div>
+                  <div className="font-semibold text-sm mb-1">Frases</div>
+                  <div className="text-xs text-text3">1 clique · copiar</div>
+                </button>
+                
+                <button
+                  onClick={() => setCurrentSection('checklist')}
+                  className="bg-surface border border-border rounded-xl p-6 hover:border-accent/30 transition-all text-center group"
+                >
+                  <div className="text-4xl mb-3 group-hover:scale-110 transition-transform">✅</div>
+                  <div className="font-semibold text-sm mb-1">Checklist</div>
+                  <div className="text-xs text-text3">Relatórios estruturados</div>
+                </button>
+              </div>
+              
+              {/* ÚLTIMAS ATUALIZAÇÕES */}
+              <div className="max-w-5xl mx-auto">
+                <div className="mb-6">
+                  <h2 className="text-2xl font-bold">Últimas atualizações</h2>
+                  <p className="text-sm text-text3 mt-1">NOVOS CONTEÚDOS E MELHORIAS</p>
                 </div>
                 
-                <div className="bg-surface border border-border rounded-xl p-8 hover:border-accent/30 transition-all">
-                  <div className="text-4xl mb-4">⚡</div>
-                  <h3 className="text-lg font-semibold mb-2">Rápido</h3>
-                  <p className="text-sm text-text2">Next.js com SSR e otimizações</p>
+                <div className="space-y-4">
+                  <div className="bg-surface border border-border rounded-xl p-6 hover:border-border2 transition-all">
+                    <div className="flex items-start gap-4">
+                      <div className="text-sm text-text3 min-w-[80px]">11 Fev</div>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="px-2 py-0.5 bg-accent/15 text-accent text-xs font-semibold rounded">v3.1</span>
+                        </div>
+                        <div className="font-semibold mb-1">RadioHub v3.1</div>
+                        <div className="text-sm text-text2">
+                          Tórax adicionado, filtros horizontais, subáreas, painel 72%, imagens nos cards.
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="bg-surface border border-border rounded-xl p-6 hover:border-border2 transition-all">
+                    <div className="flex items-start gap-4">
+                      <div className="text-sm text-text3 min-w-[80px]">11 Fev</div>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="px-2 py-0.5 bg-orange/15 text-orange text-xs font-semibold rounded">Artigos</span>
+                        </div>
+                        <div className="font-semibold mb-1">Resumo de Artigos</div>
+                        <div className="text-sm text-text2">
+                          Nova seção com take-aways práticos. Tórax, Neuro, GI, MSK e mais.
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="bg-surface border border-border rounded-xl p-6 hover:border-border2 transition-all">
+                    <div className="flex items-start gap-4">
+                      <div className="text-sm text-text3 min-w-[80px]">10 Fev</div>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="px-2 py-0.5 bg-green/15 text-green text-xs font-semibold rounded">Calc</span>
+                        </div>
+                        <div className="font-semibold mb-1">Bosniak 2019 · BI-RADS · TI-RADS · eGFR · Contraste</div>
+                        <div className="text-sm text-text2">
+                          5 calculadoras ativas.
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                
-                <div className="bg-surface border border-border rounded-xl p-8 hover:border-accent/30 transition-all">
-                  <div className="text-4xl mb-4">🎨</div>
-                  <h3 className="text-lg font-semibold mb-2">Organizado</h3>
-                  <p className="text-sm text-text2">Componentes React reutilizáveis</p>
+              </div>
+              
+              {/* FOOTER INFO */}
+              <div className="mt-16 text-center">
+                <div className="inline-flex items-center gap-2 bg-surface border border-border rounded-lg px-4 py-2 text-sm text-text3">
+                  <span>🔥</span>
+                  <span>Migrado para Next.js + Vercel</span>
+                  <span>·</span>
+                  <span>API Keys protegidas no servidor</span>
                 </div>
               </div>
             </div>
@@ -178,18 +319,31 @@ export default function Home() {
             <div>
               <h2 className="text-3xl font-bold mb-8 flex items-center gap-3">
                 {currentSection === 'resumos' && '📚 Resumos'}
+                {currentSection === 'artigos' && '📄 Resumo de Artigos'}
+                {currentSection === 'calculadoras' && '🧮 Calculadoras'}
+                {currentSection === 'geradores' && '⚙️ Geradores'}
                 {currentSection === 'mascaras' && '📝 Máscaras de Laudo'}
                 {currentSection === 'frases' && '💬 Frases Prontas'}
                 {currentSection === 'checklist' && '✅ Checklists'}
                 <span className="text-text3 text-lg font-normal">
                   {SPECS[currentSpec as keyof typeof SPECS].icon} {SPECS[currentSpec as keyof typeof SPECS].label}
+                  {currentSubArea !== 'all' && ` · ${currentSubArea}`}
                 </span>
               </h2>
               
               <div className="bg-surface border border-border rounded-xl p-12 text-center">
                 <div className="text-6xl mb-4">🚧</div>
                 <p className="text-text2">
-                  Conteúdo em desenvolvimento...
+                  {currentSection === 'artigos' && 'Resumos de artigos científicos com take-aways práticos'}
+                  {currentSection === 'calculadoras' && 'Calculadoras médicas (eGFR, TI-RADS, BI-RADS, Bosniak)'}
+                  {currentSection === 'geradores' && 'Geradores automáticos de laudo (RM Cardíaca)'}
+                  {['resumos', 'mascaras', 'frases', 'checklist'].includes(currentSection) && 'Conteúdo em desenvolvimento...'}
+                </p>
+                <p className="text-sm text-text3 mt-2">
+                  {currentSubArea === 'all' 
+                    ? `Mostrando todos os ${currentSection} de ${SPECS[currentSpec as keyof typeof SPECS].label}`
+                    : `Mostrando ${currentSection} de ${SPECS[currentSpec as keyof typeof SPECS].label} · ${currentSubArea}`
+                  }
                 </p>
                 <p className="text-sm text-text3 mt-2">
                   Próxima etapa: Integração com Firebase via API Routes
