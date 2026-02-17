@@ -95,7 +95,7 @@ export default function Home() {
               onClick={() => setCurrentSection('home')}
               className="text-2xl font-bold text-accent2 hover:text-accent transition-colors"
             >
-              RadioHub <span className="text-sm text-text3 font-normal">v8.1 Next.js</span>
+              RadioHub <span className="text-sm text-text3 font-normal">v8.2 Next.js</span>
             </button>
             
             <nav className="flex gap-1.5">
