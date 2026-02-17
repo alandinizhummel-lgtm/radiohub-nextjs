@@ -79,7 +79,7 @@ export default function Home() {
               RadioHub <span className="text-sm text-text3 font-normal">v6.0 Next.js</span>
             </button>
             
-            <nav className="flex gap-2">
+            <nav className="flex gap-1.5">
               {[
                 { id: 'home', label: '⌂ Home' },
                 { id: 'resumos', label: '📚 Resumos' },
@@ -93,7 +93,7 @@ export default function Home() {
                 <button
                   key={section.id}
                   onClick={() => setCurrentSection(section.id)}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                     currentSection === section.id
                       ? 'bg-accent/20 text-accent border border-accent/30'
                       : 'text-text3 hover:text-text hover:bg-surface2'
@@ -111,17 +111,17 @@ export default function Home() {
         </div>
       </header>
 
-      {/* ESPECIALIDADES TABS */}
+      {/* ESPECIALIDADES TABS - COMPACTO */}
       {currentSection !== 'home' && (
-        <div className="fixed top-16 left-0 right-0 bg-surface border-b-2 border-accent/30 z-40 min-h-[56px] py-2">
-          <div className="container mx-auto px-8 flex flex-wrap items-center gap-2">
+        <div className="fixed top-16 left-0 right-0 bg-surface border-b border-accent/30 z-40 py-1.5">
+          <div className="container mx-auto px-8 flex flex-wrap items-center gap-1.5">
             {Object.entries(SPECS).map(([key, spec]) => (
               <button
                 key={key}
                 onClick={() => handleSpecChange(key)}
-                className={`px-4 py-2 rounded-lg text-sm font-semibold whitespace-nowrap transition-all ${
+                className={`px-3 py-1 rounded text-xs font-semibold whitespace-nowrap transition-all ${
                   currentSpec === key
-                    ? 'bg-accent text-white shadow-lg'
+                    ? 'bg-accent text-white shadow-md'
                     : 'bg-surface2 text-text2 hover:bg-border2 hover:text-text'
                 }`}
               >
@@ -132,15 +132,15 @@ export default function Home() {
         </div>
       )}
 
-      {/* SUB-AREAS - AGORA COM WRAP EM MÚLTIPLAS LINHAS */}
+      {/* SUB-AREAS - COMPACTO */}
       {currentSection !== 'home' && SPECS[currentSpec as keyof typeof SPECS].subs.length > 0 && (
-        <div className="fixed bg-surface border-b-2 border-accent/50 z-50 min-h-[52px] py-2" style={{top: '150px', left: 0, right: 0}}>
-          <div className="container mx-auto px-8 flex flex-wrap items-center gap-2">
+        <div className="fixed bg-surface border-b border-accent/30 z-50 py-1.5" style={{top: '95px', left: 0, right: 0}}>
+          <div className="container mx-auto px-8 flex flex-wrap items-center gap-1.5">
             <button 
               onClick={() => setCurrentSubArea('all')}
-              className={`px-4 py-2 rounded-lg text-sm font-semibold whitespace-nowrap transition-all ${
+              className={`px-3 py-1 rounded text-xs font-semibold whitespace-nowrap transition-all ${
                 currentSubArea === 'all' 
-                  ? 'bg-accent text-white shadow-lg'
+                  ? 'bg-accent text-white shadow-md'
                   : 'bg-surface2 text-text hover:bg-border2'
               }`}
             >
@@ -150,9 +150,9 @@ export default function Home() {
               <button
                 key={sub}
                 onClick={() => setCurrentSubArea(sub)}
-                className={`px-4 py-2 rounded-lg text-sm font-semibold whitespace-nowrap transition-all ${
+                className={`px-3 py-1 rounded text-xs font-semibold whitespace-nowrap transition-all ${
                   currentSubArea === sub
-                    ? 'bg-accent text-white shadow-lg'
+                    ? 'bg-accent text-white shadow-md'
                     : 'bg-surface2 text-text hover:bg-border2'
                 }`}
               >
@@ -164,7 +164,7 @@ export default function Home() {
       )}
 
       {/* MAIN CONTENT */}
-      <main className={`${currentSection === 'home' ? 'pt-16' : 'pt-[240px]'} min-h-screen`}>
+      <main className={`${currentSection === 'home' ? 'pt-16' : 'pt-[150px]'} min-h-screen`}>
         <div className="container mx-auto px-8 py-12">
           
           {currentSection === 'home' && (
