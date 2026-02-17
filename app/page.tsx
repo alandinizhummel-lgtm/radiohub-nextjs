@@ -95,7 +95,7 @@ export default function Home() {
               onClick={() => setCurrentSection('home')}
               className="text-2xl font-bold text-accent2 hover:text-accent transition-colors"
             >
-              RadioHub <span className="text-sm text-text3 font-normal">v8.0 Next.js</span>
+              RadioHub <span className="text-sm text-text3 font-normal">v8.1 Next.js</span>
             </button>
             
             <nav className="flex gap-1.5">
@@ -207,7 +207,7 @@ export default function Home() {
             <div>
               {/* HERO SECTION */}
               <div className="text-center max-w-4xl mx-auto mb-16">
-                <h1 className="text-6xl font-bold mb-6">
+                <h1 className="text-6xl font-bold mb-6 text-text">
                   Ferramentas para <span className="bg-gradient-to-r from-accent2 to-accent bg-clip-text text-transparent">radiologistas</span>
                 </h1>
                 <p className="text-xl text-text2 mb-4">
@@ -222,64 +222,64 @@ export default function Home() {
               <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 mb-16">
                 <button
                   onClick={() => setCurrentSection('resumos')}
-                  className="bg-surface border border-border rounded-xl p-6 hover:border-accent/30 transition-all text-center group"
+                  className="bg-surface border border-border rounded-xl p-6 hover:border-accent/50 hover:shadow-lg transition-all text-center group"
                 >
                   <div className="text-4xl mb-3 group-hover:scale-110 transition-transform">📚</div>
-                  <div className="font-semibold text-sm mb-1">Resumos</div>
+                  <div className="font-semibold text-sm mb-1 text-text">Resumos</div>
                   <div className="text-xs text-text3">Por especialidade</div>
                 </button>
                 
                 <button
                   onClick={() => setCurrentSection('artigos')}
-                  className="bg-surface border border-border rounded-xl p-6 hover:border-accent/30 transition-all text-center group"
+                  className="bg-surface border border-border rounded-xl p-6 hover:border-accent/50 hover:shadow-lg transition-all text-center group"
                 >
                   <div className="text-4xl mb-3 group-hover:scale-110 transition-transform">📄</div>
-                  <div className="font-semibold text-sm mb-1">Artigos</div>
+                  <div className="font-semibold text-sm mb-1 text-text">Artigos</div>
                   <div className="text-xs text-text3">Resumo de evidências</div>
                 </button>
                 
                 <button
                   onClick={() => setCurrentSection('calculadoras')}
-                  className="bg-surface border border-border rounded-xl p-6 hover:border-accent/30 transition-all text-center group"
+                  className="bg-surface border border-border rounded-xl p-6 hover:border-accent/50 hover:shadow-lg transition-all text-center group"
                 >
                   <div className="text-4xl mb-3 group-hover:scale-110 transition-transform">🧮</div>
-                  <div className="font-semibold text-sm mb-1">Calculadoras</div>
+                  <div className="font-semibold text-sm mb-1 text-text">Calculadoras</div>
                   <div className="text-xs text-text3">eGFR · TI-RADS · BI-RADS</div>
                 </button>
                 
                 <button
                   onClick={() => setCurrentSection('geradores')}
-                  className="bg-surface border border-border rounded-xl p-6 hover:border-accent/30 transition-all text-center group"
+                  className="bg-surface border border-border rounded-xl p-6 hover:border-accent/50 hover:shadow-lg transition-all text-center group"
                 >
                   <div className="text-4xl mb-3 group-hover:scale-110 transition-transform">⚙️</div>
-                  <div className="font-semibold text-sm mb-1">Geradores</div>
+                  <div className="font-semibold text-sm mb-1 text-text">Geradores</div>
                   <div className="text-xs text-text3">RM Cardíaca</div>
                 </button>
                 
                 <button
                   onClick={() => setCurrentSection('mascaras')}
-                  className="bg-surface border border-border rounded-xl p-6 hover:border-accent/30 transition-all text-center group"
+                  className="bg-surface border border-border rounded-xl p-6 hover:border-accent/50 hover:shadow-lg transition-all text-center group"
                 >
                   <div className="text-4xl mb-3 group-hover:scale-110 transition-transform">📝</div>
-                  <div className="font-semibold text-sm mb-1">Máscaras</div>
+                  <div className="font-semibold text-sm mb-1 text-text">Máscaras</div>
                   <div className="text-xs text-text3">Copie e cole no Word</div>
                 </button>
                 
                 <button
                   onClick={() => setCurrentSection('frases')}
-                  className="bg-surface border border-border rounded-xl p-6 hover:border-accent/30 transition-all text-center group"
+                  className="bg-surface border border-border rounded-xl p-6 hover:border-accent/50 hover:shadow-lg transition-all text-center group"
                 >
                   <div className="text-4xl mb-3 group-hover:scale-110 transition-transform">💬</div>
-                  <div className="font-semibold text-sm mb-1">Frases</div>
+                  <div className="font-semibold text-sm mb-1 text-text">Frases</div>
                   <div className="text-xs text-text3">1 clique · copiar</div>
                 </button>
                 
                 <button
                   onClick={() => setCurrentSection('checklist')}
-                  className="bg-surface border border-border rounded-xl p-6 hover:border-accent/30 transition-all text-center group"
+                  className="bg-surface border border-border rounded-xl p-6 hover:border-accent/50 hover:shadow-lg transition-all text-center group"
                 >
                   <div className="text-4xl mb-3 group-hover:scale-110 transition-transform">✅</div>
-                  <div className="font-semibold text-sm mb-1">Checklist</div>
+                  <div className="font-semibold text-sm mb-1 text-text">Checklist</div>
                   <div className="text-xs text-text3">Relatórios estruturados</div>
                 </button>
               </div>
@@ -287,7 +287,7 @@ export default function Home() {
               {/* ÚLTIMAS ATUALIZAÇÕES */}
               <div className="max-w-5xl mx-auto">
                 <div className="mb-6">
-                  <h2 className="text-2xl font-bold">Últimas atualizações</h2>
+                  <h2 className="text-2xl font-bold text-text">Últimas atualizações</h2>
                   <p className="text-sm text-text3 mt-1">NOVOS CONTEÚDOS E MELHORIAS</p>
                 </div>
                 
@@ -299,7 +299,7 @@ export default function Home() {
                         <div className="flex items-center gap-2 mb-2">
                           <span className="px-2 py-0.5 bg-accent/15 text-accent text-xs font-semibold rounded">v3.1</span>
                         </div>
-                        <div className="font-semibold mb-1">RadioHub v3.1</div>
+                        <div className="font-semibold mb-1 text-text">RadioHub v3.1</div>
                         <div className="text-sm text-text2">
                           Tórax adicionado, filtros horizontais, subáreas, painel 72%, imagens nos cards.
                         </div>
@@ -314,7 +314,7 @@ export default function Home() {
                         <div className="flex items-center gap-2 mb-2">
                           <span className="px-2 py-0.5 bg-orange/15 text-orange text-xs font-semibold rounded">Artigos</span>
                         </div>
-                        <div className="font-semibold mb-1">Resumo de Artigos</div>
+                        <div className="font-semibold mb-1 text-text">Resumo de Artigos</div>
                         <div className="text-sm text-text2">
                           Nova seção com take-aways práticos. Tórax, Neuro, GI, MSK e mais.
                         </div>
@@ -329,7 +329,7 @@ export default function Home() {
                         <div className="flex items-center gap-2 mb-2">
                           <span className="px-2 py-0.5 bg-green/15 text-green text-xs font-semibold rounded">Calc</span>
                         </div>
-                        <div className="font-semibold mb-1">Bosniak 2019 · BI-RADS · TI-RADS · eGFR · Contraste</div>
+                        <div className="font-semibold mb-1 text-text">Bosniak 2019 · BI-RADS · TI-RADS · eGFR · Contraste</div>
                         <div className="text-sm text-text2">
                           5 calculadoras ativas.
                         </div>
