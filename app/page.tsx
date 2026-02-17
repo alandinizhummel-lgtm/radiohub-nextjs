@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 // ESPECIALIDADES (copiadas do RadioHub original)
 const SPECS = {
@@ -60,11 +60,30 @@ export default function Home() {
   const [currentSpec, setCurrentSpec] = useState('neuro')
   const [currentSubArea, setCurrentSubArea] = useState('all')
   const [currentSection, setCurrentSection] = useState('home')
+  const [theme, setTheme] = useState<'dark' | 'light'>('dark')
 
   const handleSpecChange = (spec: string) => {
     setCurrentSpec(spec)
     setCurrentSubArea('all')
   }
+
+  const toggleTheme = () => {
+    const newTheme = theme === 'dark' ? 'light' : 'dark'
+    setTheme(newTheme)
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('theme', newTheme)
+      document.documentElement.classList.toggle('light-mode', newTheme === 'light')
+    }
+  }
+
+  // Load theme from localStorage on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const savedTheme = localStorage.getItem('theme') as 'dark' | 'light' || 'dark'
+      setTheme(savedTheme)
+      document.documentElement.classList.toggle('light-mode', savedTheme === 'light')
+    }
+  }, [])
 
   return (
     <div className="min-h-screen">
@@ -76,7 +95,7 @@ export default function Home() {
               onClick={() => setCurrentSection('home')}
               className="text-2xl font-bold text-accent2 hover:text-accent transition-colors"
             >
-              RadioHub <span className="text-sm text-text3 font-normal">v6.0 Next.js</span>
+              RadioHub <span className="text-sm text-text3 font-normal">v8.0 Next.js</span>
             </button>
             
             <nav className="flex gap-1.5">
@@ -88,7 +107,9 @@ export default function Home() {
                 { id: 'geradores', label: '⚙️ Geradores' },
                 { id: 'mascaras', label: '📝 Máscaras' },
                 { id: 'frases', label: '💬 Frases' },
-                { id: 'checklist', label: '✅ Checklists' }
+                { id: 'checklist', label: '✅ Checklists' },
+                { id: 'tutoriais', label: '🎓 Tutoriais' },
+                { id: 'videos', label: '🎬 Vídeos' }
               ].map(section => (
                 <button
                   key={section.id}
@@ -105,14 +126,23 @@ export default function Home() {
             </nav>
           </div>
           
-          <div className="text-sm text-text3">
-            🔥 Powered by Next.js + Vercel
+          <div className="flex items-center gap-4">
+            <button
+              onClick={toggleTheme}
+              className="p-2 rounded-lg bg-surface2 hover:bg-border transition-all"
+              title={theme === 'dark' ? 'Ativar modo claro' : 'Ativar modo escuro'}
+            >
+              {theme === 'dark' ? '☀️' : '🌙'}
+            </button>
+            <div className="text-sm text-text3">
+              🔥 Powered by Next.js + Vercel
+            </div>
           </div>
         </div>
       </header>
 
       {/* ESPECIALIDADES TABS - COMPACTO */}
-      {currentSection !== 'home' && (
+      {currentSection !== 'home' && !['calculadoras', 'geradores', 'tutoriais', 'videos'].includes(currentSection) && (
         <div className="fixed top-16 left-0 right-0 bg-surface border-b border-accent/30 z-40 py-1.5">
           <div className="container mx-auto px-8 flex flex-wrap items-center gap-1.5">
             {Object.entries(SPECS).map(([key, spec]) => (
@@ -164,7 +194,13 @@ export default function Home() {
       )}
 
       {/* MAIN CONTENT */}
-      <main className={`${currentSection === 'home' ? 'pt-16' : 'pt-[150px]'} min-h-screen`}>
+      <main className={`${
+        currentSection === 'home' 
+          ? 'pt-16' 
+          : ['calculadoras', 'geradores', 'tutoriais', 'videos'].includes(currentSection)
+          ? 'pt-16'
+          : 'pt-[150px]'
+      } min-h-screen`}>
         <div className="container mx-auto px-8 py-12">
           
           {currentSection === 'home' && (
@@ -325,28 +361,69 @@ export default function Home() {
                 {currentSection === 'mascaras' && '📝 Máscaras de Laudo'}
                 {currentSection === 'frases' && '💬 Frases Prontas'}
                 {currentSection === 'checklist' && '✅ Checklists'}
-                <span className="text-text3 text-lg font-normal">
-                  {SPECS[currentSpec as keyof typeof SPECS].icon} {SPECS[currentSpec as keyof typeof SPECS].label}
-                  {currentSubArea !== 'all' && ` · ${currentSubArea}`}
-                </span>
+                {currentSection === 'tutoriais' && '🎓 Tutoriais'}
+                {currentSection === 'videos' && '🎬 Vídeos'}
+                {!['calculadoras', 'geradores', 'tutoriais', 'videos'].includes(currentSection) && (
+                  <span className="text-text3 text-lg font-normal">
+                    {SPECS[currentSpec as keyof typeof SPECS].icon} {SPECS[currentSpec as keyof typeof SPECS].label}
+                    {currentSubArea !== 'all' && ` · ${currentSubArea}`}
+                  </span>
+                )}
               </h2>
               
               <div className="bg-surface border border-border rounded-xl p-12 text-center">
-                <div className="text-6xl mb-4">🚧</div>
-                <p className="text-text2">
+                <div className="text-6xl mb-4">
+                  {currentSection === 'tutoriais' && '🎓'}
+                  {currentSection === 'videos' && '🎬'}
+                  {!['tutoriais', 'videos'].includes(currentSection) && '🚧'}
+                </div>
+                <p className="text-text2 text-xl mb-4">
                   {currentSection === 'artigos' && 'Resumos de artigos científicos com take-aways práticos'}
                   {currentSection === 'calculadoras' && 'Calculadoras médicas (eGFR, TI-RADS, BI-RADS, Bosniak)'}
                   {currentSection === 'geradores' && 'Geradores automáticos de laudo (RM Cardíaca)'}
+                  {currentSection === 'tutoriais' && 'Tutoriais práticos de radiologia'}
+                  {currentSection === 'videos' && 'Vídeos educacionais e demonstrações'}
                   {['resumos', 'mascaras', 'frases', 'checklist'].includes(currentSection) && 'Conteúdo em desenvolvimento...'}
                 </p>
                 <p className="text-sm text-text3 mt-2">
-                  {currentSubArea === 'all' 
+                  {!['calculadoras', 'geradores', 'tutoriais', 'videos'].includes(currentSection) && currentSubArea === 'all' 
                     ? `Mostrando todos os ${currentSection} de ${SPECS[currentSpec as keyof typeof SPECS].label}`
-                    : `Mostrando ${currentSection} de ${SPECS[currentSpec as keyof typeof SPECS].label} · ${currentSubArea}`
+                    : !['calculadoras', 'geradores', 'tutoriais', 'videos'].includes(currentSection)
+                    ? `Mostrando ${currentSection} de ${SPECS[currentSpec as keyof typeof SPECS].label} · ${currentSubArea}`
+                    : currentSection === 'tutoriais'
+                    ? 'Guias passo a passo, protocolos e técnicas avançadas'
+                    : currentSection === 'videos'
+                    ? 'Aulas, webinars e demonstrações práticas'
+                    : 'Próxima etapa de desenvolvimento'
                   }
                 </p>
-                <p className="text-sm text-text3 mt-2">
-                  Próxima etapa: Integração com Firebase via API Routes
+                {currentSection === 'tutoriais' && (
+                  <div className="mt-6 max-w-2xl mx-auto text-left">
+                    <p className="text-sm text-text3 mb-2">📌 Tópicos planejados:</p>
+                    <ul className="text-sm text-text2 space-y-1">
+                      <li>• Como protocolar exames de RM</li>
+                      <li>• Passo a passo para laudo de TC de Tórax</li>
+                      <li>• Técnicas de otimização de contraste</li>
+                      <li>• Protocolos de urgência e emergência</li>
+                    </ul>
+                  </div>
+                )}
+                {currentSection === 'videos' && (
+                  <div className="mt-6 max-w-2xl mx-auto text-left">
+                    <p className="text-sm text-text3 mb-2">📌 Conteúdos planejados:</p>
+                    <ul className="text-sm text-text2 space-y-1">
+                      <li>• Webinars com especialistas</li>
+                      <li>• Demonstrações de casos complexos</li>
+                      <li>• Tutoriais em vídeo de técnicas</li>
+                      <li>• Revisões de literatura recente</li>
+                    </ul>
+                  </div>
+                )}
+                <p className="text-sm text-text3 mt-4">
+                  {['tutoriais', 'videos'].includes(currentSection) 
+                    ? 'Seção será implementada na próxima fase de desenvolvimento'
+                    : 'Próxima etapa: Integração com Firebase via API Routes'
+                  }
                 </p>
               </div>
             </div>
