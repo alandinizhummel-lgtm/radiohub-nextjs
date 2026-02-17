@@ -113,8 +113,8 @@ export default function Home() {
 
       {/* ESPECIALIDADES TABS */}
       {currentSection !== 'home' && (
-        <div className="fixed top-16 left-0 right-0 bg-surface border-b-2 border-accent/30 z-40" style={{height: '56px'}}>
-          <div className="container mx-auto px-8 h-full flex items-center gap-2 overflow-x-auto">
+        <div className="fixed top-16 left-0 right-0 bg-surface border-b-2 border-accent/30 z-40 min-h-[56px] py-2">
+          <div className="container mx-auto px-8 flex flex-wrap items-center gap-2">
             {Object.entries(SPECS).map(([key, spec]) => (
               <button
                 key={key}
@@ -132,10 +132,10 @@ export default function Home() {
         </div>
       )}
 
-      {/* SUB-AREAS - AGORA COM POSIÇÃO E Z-INDEX CORRETOS */}
+      {/* SUB-AREAS - AGORA COM WRAP EM MÚLTIPLAS LINHAS */}
       {currentSection !== 'home' && SPECS[currentSpec as keyof typeof SPECS].subs.length > 0 && (
-        <div className="fixed bg-surface border-b-2 border-accent/50 z-50" style={{top: '120px', left: 0, right: 0, height: '52px'}}>
-          <div className="container mx-auto px-8 h-full flex items-center gap-2 overflow-x-auto">
+        <div className="fixed bg-surface border-b-2 border-accent/50 z-50 min-h-[52px] py-2" style={{top: '150px', left: 0, right: 0}}>
+          <div className="container mx-auto px-8 flex flex-wrap items-center gap-2">
             <button 
               onClick={() => setCurrentSubArea('all')}
               className={`px-4 py-2 rounded-lg text-sm font-semibold whitespace-nowrap transition-all ${
@@ -164,7 +164,7 @@ export default function Home() {
       )}
 
       {/* MAIN CONTENT */}
-      <main className={`${currentSection === 'home' ? 'pt-16' : 'pt-[180px]'} min-h-screen`}>
+      <main className={`${currentSection === 'home' ? 'pt-16' : 'pt-[240px]'} min-h-screen`}>
         <div className="container mx-auto px-8 py-12">
           
           {currentSection === 'home' && (
