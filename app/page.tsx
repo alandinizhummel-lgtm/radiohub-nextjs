@@ -132,16 +132,16 @@ export default function Home() {
         </div>
       )}
 
-      {/* SUB-AREAS - AGORA COM CORES VISÍVEIS */}
+      {/* SUB-AREAS - AGORA COM POSIÇÃO E Z-INDEX CORRETOS */}
       {currentSection !== 'home' && SPECS[currentSpec as keyof typeof SPECS].subs.length > 0 && (
-        <div className="fixed bg-surface2 border-b-2 border-border2 z-30" style={{top: '72px', left: 0, right: 0, height: '52px'}}>
+        <div className="fixed bg-surface border-b-2 border-accent/50 z-50" style={{top: '120px', left: 0, right: 0, height: '52px'}}>
           <div className="container mx-auto px-8 h-full flex items-center gap-2 overflow-x-auto">
             <button 
               onClick={() => setCurrentSubArea('all')}
-              className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all ${
+              className={`px-4 py-2 rounded-lg text-sm font-semibold whitespace-nowrap transition-all ${
                 currentSubArea === 'all' 
-                  ? 'bg-accent/20 text-accent border-2 border-accent'
-                  : 'bg-bg2 text-text3 hover:bg-border hover:text-text'
+                  ? 'bg-accent text-white shadow-lg'
+                  : 'bg-surface2 text-text hover:bg-border2'
               }`}
             >
               Todas
@@ -150,10 +150,10 @@ export default function Home() {
               <button
                 key={sub}
                 onClick={() => setCurrentSubArea(sub)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all ${
+                className={`px-4 py-2 rounded-lg text-sm font-semibold whitespace-nowrap transition-all ${
                   currentSubArea === sub
-                    ? 'bg-accent/20 text-accent border-2 border-accent'
-                    : 'bg-bg2 text-text3 hover:bg-border hover:text-text'
+                    ? 'bg-accent text-white shadow-lg'
+                    : 'bg-surface2 text-text hover:bg-border2'
                 }`}
               >
                 {sub}
@@ -164,7 +164,7 @@ export default function Home() {
       )}
 
       {/* MAIN CONTENT */}
-      <main className={`${currentSection === 'home' ? 'pt-16' : 'pt-[140px]'} min-h-screen`}>
+      <main className={`${currentSection === 'home' ? 'pt-16' : 'pt-[180px]'} min-h-screen`}>
         <div className="container mx-auto px-8 py-12">
           
           {currentSection === 'home' && (
