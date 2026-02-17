@@ -1,9 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import ContentList from '@/components/ContentList'
 
-// ESPECIALIDADES (copiadas do RadioHub original) - TODAS AS 10!
 const SPECS = {
   neuro: {
     label: 'Neurorradiologia',
@@ -77,7 +75,6 @@ export default function Home() {
     }
   }
 
-  // Load theme from localStorage on mount
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const savedTheme = localStorage.getItem('theme') as 'dark' | 'light' || 'dark'
@@ -86,12 +83,8 @@ export default function Home() {
     }
   }, [])
 
-  // Determinar se a seção atual usa Firebase
-  const usesFirebase = ['resumos', 'artigos', 'mascaras', 'frases', 'checklists', 'tutoriais', 'videos'].includes(currentSection)
-
   return (
     <div className="min-h-screen">
-      {/* HEADER */}
       <header className="fixed top-0 left-0 right-0 h-16 bg-bg/98 backdrop-blur-xl border-b border-border z-50">
         <div className="container mx-auto px-8 h-full flex items-center justify-between">
           <div className="flex items-center gap-8">
@@ -99,7 +92,7 @@ export default function Home() {
               onClick={() => setCurrentSection('home')}
               className="text-2xl font-bold text-accent2 hover:text-accent transition-colors"
             >
-              RadioHub <span className="text-sm text-text3 font-normal">v9.0 Next.js</span>
+              RadioHub <span className="text-sm text-text3 font-normal">v8.3 Next.js</span>
             </button>
             
             <nav className="flex gap-1.5">
@@ -145,8 +138,7 @@ export default function Home() {
         </div>
       </header>
 
-      {/* ESPECIALIDADES TABS - só para seções com Firebase */}
-      {currentSection !== 'home' && usesFirebase && (
+      {currentSection !== 'home' && currentSection !== 'calculadoras' && currentSection !== 'geradores' && (
         <div className="fixed top-16 left-0 right-0 bg-surface border-b border-accent/30 z-40 py-1.5">
           <div className="container mx-auto px-8 flex flex-wrap items-center gap-1.5">
             {Object.entries(SPECS).map(([key, spec]) => (
@@ -166,8 +158,7 @@ export default function Home() {
         </div>
       )}
 
-      {/* SUB-AREAS - só para seções com Firebase */}
-      {currentSection !== 'home' && usesFirebase && SPECS[currentSpec as keyof typeof SPECS].subs.length > 0 && (
+      {currentSection !== 'home' && currentSection !== 'calculadoras' && currentSection !== 'geradores' && SPECS[currentSpec as keyof typeof SPECS].subs.length > 0 && (
         <div className="fixed bg-surface border-b border-accent/30 z-50 py-1.5" style={{top: '95px', left: 0, right: 0}}>
           <div className="container mx-auto px-8 flex flex-wrap items-center gap-1.5">
             <button 
@@ -197,17 +188,15 @@ export default function Home() {
         </div>
       )}
 
-      {/* MAIN CONTENT */}
       <main className={`${
         currentSection === 'home' 
           ? 'pt-16' 
-          : usesFirebase
-          ? 'pt-[150px]'
-          : 'pt-16'
+          : currentSection === 'calculadoras' || currentSection === 'geradores'
+          ? 'pt-16'
+          : 'pt-[150px]'
       } min-h-screen`}>
         <div className="container mx-auto px-8 py-12">
           
-          {/* HOME PAGE */}
           {currentSection === 'home' && (
             <div>
               <div className="text-center max-w-4xl mx-auto mb-16">
@@ -222,54 +211,33 @@ export default function Home() {
                 </p>
               </div>
               <div className="text-center py-20">
-                <p className="text-text2 text-xl">🎉 Firebase Integration v9.0</p>
-                <p className="text-text3 mt-2">Selecione uma seção acima para ver o conteúdo!</p>
+                <p className="text-text2 text-xl">✅ Site funcionando - v8.3</p>
+                <p className="text-text3 mt-2">Firebase será adicionado em breve!</p>
               </div>
             </div>
           )}
 
-          {/* CONTENT WITH FIREBASE - NOVO! */}
-          {currentSection !== 'home' && usesFirebase && (
+          {currentSection !== 'home' && (
             <div>
-              <h2 className="text-3xl font-bold mb-8 flex items-center gap-3 text-text">
+              <h2 className="text-3xl font-bold mb-8 text-text">
                 {currentSection === 'resumos' && '📚 Resumos'}
-                {currentSection === 'artigos' && '📄 Resumo de Artigos'}
-                {currentSection === 'mascaras' && '📝 Máscaras de Laudo'}
-                {currentSection === 'frases' && '💬 Frases Prontas'}
+                {currentSection === 'artigos' && '📄 Artigos'}
+                {currentSection === 'calculadoras' && '🧮 Calculadoras'}
+                {currentSection === 'geradores' && '⚙️ Geradores'}
+                {currentSection === 'mascaras' && '📝 Máscaras'}
+                {currentSection === 'frases' && '💬 Frases'}
                 {currentSection === 'checklists' && '✅ Checklists'}
                 {currentSection === 'tutoriais' && '🎓 Tutoriais'}
                 {currentSection === 'videos' && '🎬 Vídeos'}
-                <span className="text-text3 text-lg font-normal">
-                  {SPECS[currentSpec as keyof typeof SPECS].icon} {SPECS[currentSpec as keyof typeof SPECS].label}
-                  {currentSubArea !== 'all' && ` · ${currentSubArea}`}
-                </span>
-              </h2>
-              
-              {/* CONTENT LIST - Carrega do Firebase! */}
-              <ContentList 
-                tipo={currentSection as any}
-                especialidade={currentSpec}
-                subarea={currentSubArea}
-              />
-            </div>
-          )}
-
-          {/* CALCULADORAS E GERADORES - continua igual (em desenvolvimento) */}
-          {currentSection !== 'home' && !usesFirebase && (
-            <div>
-              <h2 className="text-3xl font-bold mb-8 flex items-center gap-3 text-text">
-                {currentSection === 'calculadoras' && '🧮 Calculadoras'}
-                {currentSection === 'geradores' && '⚙️ Geradores'}
               </h2>
               
               <div className="bg-surface border border-border rounded-xl p-12 text-center">
                 <div className="text-6xl mb-4">🚧</div>
                 <p className="text-text2 text-xl mb-4">
-                  {currentSection === 'calculadoras' && 'Calculadoras médicas (eGFR, TI-RADS, BI-RADS, Bosniak)'}
-                  {currentSection === 'geradores' && 'Geradores automáticos de laudo (RM Cardíaca)'}
+                  Conteúdo em desenvolvimento
                 </p>
                 <p className="text-sm text-text3">
-                  Próxima etapa de desenvolvimento
+                  Firebase Integration será adicionada em breve
                 </p>
               </div>
             </div>
