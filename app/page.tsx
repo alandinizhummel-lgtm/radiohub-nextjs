@@ -501,24 +501,3 @@ export default function Home() {
     </div>
   )
 }
-```
-
----
-
-## ✅ AGORA SIM! DROPDOWN VERTICAL!
-
-**COMO FUNCIONA:**
-1. **Linha 1:** Header (Home, Resumos, etc)
-2. **Linha 2:** Especialidades (Neuro, C&P, GI...)
-3. **Clica numa especialidade:** Dropdown VERTICAL abre ABAIXO dela com sub-áreas uma embaixo da outra!
-
-**Exemplo:**
-```
-🧠 Neuro ▼ (clicou)
-  ↓
-┌───────────────────┐
-│ ⊕ Todas           │
-│ Neoplasias        │
-│ Trauma            │
-│ AVC/Isquemia      │
-└───────────────────┘
