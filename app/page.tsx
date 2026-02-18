@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import ContentList from '../components/ContentList'
 
 const SPECS = {
@@ -111,6 +111,8 @@ export default function Home() {
   const [currentSection, setCurrentSection] = useState('home')
   const [theme, setTheme] = useState<'dark' | 'light'>('dark')
   const [dropdownOpen, setDropdownOpen] = useState(false)
+  const dropdownRef = useRef<HTMLDivElement>(null)
+  const buttonRef = useRef<HTMLButtonElement>(null)
 
   const handleSpecChange = (spec: string) => {
     setCurrentSpec(spec)
@@ -134,6 +136,21 @@ export default function Home() {
       document.documentElement.classList.toggle('light-mode', savedTheme === 'light')
     }
   }, [])
+
+  // Fecha dropdown quando clica fora
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node) &&
+          buttonRef.current && !buttonRef.current.contains(event.target as Node)) {
+        setDropdownOpen(false)
+      }
+    }
+    
+    if (dropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+      return () => document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [dropdownOpen])
 
   const usesFirebase = ['resumos', 'artigos', 'mascaras', 'frases', 'checklists', 'tutoriais', 'videos'].includes(currentSection)
   const usesSpecs = usesFirebase || currentSection === 'calculadoras' || currentSection === 'geradores'
@@ -194,73 +211,68 @@ export default function Home() {
       </header>
 
       {currentSection !== 'home' && usesSpecs && (
-        <div className="fixed top-16 left-0 right-0 bg-surface border-b border-accent/30 z-40 py-1.5">
-          <div className="container mx-auto px-8 flex flex-wrap items-center gap-1.5">
-            {Object.entries(SPECS).map(([key, spec]) => (
-              <button
-                key={key}
-                onClick={() => handleSpecChange(key)}
-                className={`px-3 py-1 rounded text-xs font-semibold whitespace-nowrap transition-all ${
-                  currentSpec === key
-                    ? 'bg-accent text-white shadow-md'
-                    : 'bg-surface2 text-text2 hover:bg-border2 hover:text-text'
-                }`}
-              >
-                {spec.icon} {spec.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {currentSection !== 'home' && usesFirebase && SPECS[currentSpec as keyof typeof SPECS].subs.length > 0 && (
-        <div className="fixed z-50" style={{top: '95px', left: 0, right: 0}}>
-          <div className="container mx-auto px-8 py-2">
-            <div className="relative inline-block">
-              <button
-                onClick={() => setDropdownOpen(!dropdownOpen)}
-                className="px-4 py-2 bg-surface2 text-text border border-border rounded-lg hover:border-accent/50 transition-all flex items-center gap-2 text-sm font-medium"
-              >
-                <span>{currentSubArea === 'all' ? '⊕ Todas as sub-áreas' : currentSubArea}</span>
-                <span className={`transition-transform ${dropdownOpen ? 'rotate-180' : ''}`}>▼</span>
-              </button>
-              
-              {dropdownOpen && (
-                <>
-                  <div 
-                    className="fixed inset-0 z-10" 
-                    onClick={() => setDropdownOpen(false)}
-                  />
-                  <div className="absolute top-full left-0 mt-2 w-64 bg-surface border border-border rounded-lg shadow-xl max-h-96 overflow-y-auto z-20">
-                    <button
-                      onClick={() => {
-                        setCurrentSubArea('all')
-                        setDropdownOpen(false)
-                      }}
-                      className={`w-full text-left px-4 py-2 text-sm hover:bg-accent/10 transition-colors ${
-                        currentSubArea === 'all' ? 'bg-accent/20 text-accent font-semibold' : 'text-text'
-                      }`}
+        <div className="fixed top-16 left-0 right-0 bg-surface border-b border-accent/30 z-40">
+          <div className="container mx-auto px-8 py-1.5 flex items-center gap-1.5 relative">
+            {Object.entries(SPECS).map(([key, spec]) => {
+              const isActive = currentSpec === key
+              return (
+                <div key={key} className="relative">
+                  <button
+                    ref={isActive && usesFirebase ? buttonRef : null}
+                    onClick={() => {
+                      handleSpecChange(key)
+                      if (usesFirebase && SPECS[key as keyof typeof SPECS].subs.length > 0) {
+                        setTimeout(() => setDropdownOpen(true), 0)
+                      }
+                    }}
+                    className={`px-3 py-1 rounded text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1 ${
+                      isActive
+                        ? 'bg-accent text-white shadow-md'
+                        : 'bg-surface2 text-text2 hover:bg-border2 hover:text-text'
+                    }`}
+                  >
+                    {spec.icon} {spec.label}
+                    {isActive && usesFirebase && spec.subs.length > 0 && (
+                      <span className={`transition-transform text-[10px] ${dropdownOpen ? 'rotate-180' : ''}`}>▼</span>
+                    )}
+                  </button>
+                  
+                  {/* Dropdown logo abaixo do botão ativo */}
+                  {isActive && usesFirebase && dropdownOpen && spec.subs.length > 0 && (
+                    <div 
+                      ref={dropdownRef}
+                      className="absolute top-full left-0 mt-2 w-64 bg-surface border border-accent/50 rounded-lg shadow-2xl max-h-96 overflow-y-auto z-50"
                     >
-                      ⊕ Todas as sub-áreas
-                    </button>
-                    {SPECS[currentSpec as keyof typeof SPECS].subs.map(sub => (
                       <button
-                        key={sub}
                         onClick={() => {
-                          setCurrentSubArea(sub)
+                          setCurrentSubArea('all')
                           setDropdownOpen(false)
                         }}
-                        className={`w-full text-left px-4 py-2 text-sm hover:bg-accent/10 transition-colors ${
-                          currentSubArea === sub ? 'bg-accent/20 text-accent font-semibold' : 'text-text'
+                        className={`w-full text-left px-4 py-2 text-sm hover:bg-accent/10 transition-colors border-b border-border ${
+                          currentSubArea === 'all' ? 'bg-accent/20 text-accent font-semibold' : 'text-text'
                         }`}
                       >
-                        {sub}
+                        ⊕ Todas as sub-áreas
                       </button>
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
+                      {spec.subs.map(sub => (
+                        <button
+                          key={sub}
+                          onClick={() => {
+                            setCurrentSubArea(sub)
+                            setDropdownOpen(false)
+                          }}
+                          className={`w-full text-left px-4 py-2 text-sm hover:bg-accent/10 transition-colors ${
+                            currentSubArea === sub ? 'bg-accent/20 text-accent font-semibold' : 'text-text'
+                          }`}
+                        >
+                          {sub}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
           </div>
         </div>
       )}
@@ -268,8 +280,6 @@ export default function Home() {
       <main className={`${
         currentSection === 'home' 
           ? 'pt-16' 
-          : usesFirebase
-          ? 'pt-[105px]'
           : usesSpecs
           ? 'pt-[95px]'
           : 'pt-16'
