@@ -114,15 +114,19 @@ export default function Home() {
   const dropdownRef = useRef<HTMLDivElement>(null)
   const buttonRef = useRef<HTMLButtonElement>(null)
 
-  const handleSpecChange = (spec: string) => {
-    if (currentSpec === spec && usesFirebase) {
-      setDropdownOpen(!dropdownOpen)
+const handleSpecChange = (spec: string) => {
+  if (currentSpec === spec && usesFirebase) {
+    setDropdownOpen(!dropdownOpen)
+  } else {
+    setCurrentSpec(spec)
+    setCurrentSubArea('all')
+    if (usesFirebase) {
+      setDropdownOpen(true)
     } else {
-      setCurrentSpec(spec)
-      setCurrentSubArea('all')
       setDropdownOpen(false)
     }
   }
+}
 
   const toggleTheme = () => {
     const newTheme = theme === 'dark' ? 'light' : 'dark'
