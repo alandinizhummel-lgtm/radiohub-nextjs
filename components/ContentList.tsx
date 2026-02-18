@@ -1,49 +1,31 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import ContentCard from './ContentCard'
+import { useRouter, useParams } from 'next/navigation'
+import ContentCard from '@/components/ContentCard'
 
-interface ContentListProps {
-  tipo: 'resumos' | 'artigos' | 'mascaras' | 'frases' | 'checklists' | 'tutoriais' | 'videos'
-  especialidade: string
-  subarea: string
-}
+export default function ContentDetailPage() {
+  const router = useRouter()
+  const params = useParams()
+  const tipo = params.tipo as string
+  const especialidade = params.especialidade as string
+  const id = params.id as string
 
-interface ContentItem {
-  id: string
-  titulo: string
-  conteudo: string
-  subarea?: string
-  autor?: string
-  dataAtualizacao?: string
-}
-
-export default function ContentList({ tipo, especialidade, subarea }: ContentListProps) {
-  const [items, setItems] = useState<ContentItem[]>([])
+  const [item, setItem] = useState<any>(null)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    fetchContent()
-  }, [tipo, especialidade, subarea])
+    fetchItem()
+  }, [])
 
-  const fetchContent = async () => {
+  const fetchItem = async () => {
     try {
-      setLoading(true)
-      setError(null)
-      
-      const response = await fetch(`/api/content/${tipo}/${especialidade}/${encodeURIComponent(subarea)}`)
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch content')
-      }
-      
+      const response = await fetch(`/api/content/${tipo}/${especialidade}/all`)
       const data = await response.json()
-      setItems(data.items || [])
-      
-    } catch (err) {
-      console.error('Error fetching content:', err)
-      setError('Erro ao carregar conteúdo')
+      const foundItem = data.items.find((i: any) => i.id === id)
+      setItem(foundItem)
+    } catch (error) {
+      console.error('Error:', error)
     } finally {
       setLoading(false)
     }
@@ -51,61 +33,65 @@ export default function ContentList({ tipo, especialidade, subarea }: ContentLis
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-accent mb-4"></div>
-          <p className="text-text2">Carregando {tipo}...</p>
+      <div className="min-h-screen bg-bg pt-16">
+        <div className="container mx-auto px-8 py-12">
+          <div className="text-center py-20">
+            <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-accent mb-4"></div>
+            <p className="text-text2">Carregando...</p>
+          </div>
         </div>
       </div>
     )
   }
 
-  if (error) {
+  if (!item) {
     return (
-      <div className="bg-red/10 border border-red/30 rounded-xl p-6 text-center">
-        <div className="text-4xl mb-2">⚠️</div>
-        <p className="text-red">{error}</p>
-        <button
-          onClick={fetchContent}
-          className="mt-4 px-4 py-2 bg-red/20 text-red rounded-lg hover:bg-red/30"
-        >
-          Tentar novamente
-        </button>
+      <div className="min-h-screen bg-bg pt-16">
+        <div className="container mx-auto px-8 py-12">
+          <div className="text-center py-20">
+            <div className="text-6xl mb-4">❌</div>
+            <p className="text-xl text-text2 mb-4">Conteúdo não encontrado</p>
+            <button
+              onClick={() => router.back()}
+              className="px-6 py-2 bg-accent text-white rounded-lg hover:bg-accent2"
+            >
+              ← Voltar
+            </button>
+          </div>
+        </div>
       </div>
     )
   }
 
-  if (items.length === 0) {
-    return (
-      <div className="bg-surface border border-border rounded-xl p-12 text-center">
-        <div className="text-6xl mb-4">📭</div>
-        <p className="text-xl text-text2 mb-2">Nenhum conteúdo encontrado</p>
-        <p className="text-sm text-text3">
-          Ainda não há {tipo} cadastrados para esta área.
-        </p>
-      </div>
-    )
+  const typeLabels: Record<string, string> = {
+    resumos: 'Resumo',
+    artigos: 'Artigo',
+    mascaras: 'Máscara',
+    frases: 'Frase',
+    checklists: 'Checklist',
+    tutoriais: 'Tutorial',
+    videos: 'Vídeo'
   }
 
   return (
-    <div>
-      <div className="mb-4 text-sm text-text3">
-        {items.length} {items.length === 1 ? 'item encontrado' : 'itens encontrados'}
-      </div>
-      
-      <div className="grid grid-cols-1 gap-4">
-        {items.map((item) => (
-          <ContentCard
-            key={item.id}
-            id={item.id}
-            titulo={item.titulo}
-            conteudo={item.conteudo}
-            subarea={item.subarea}
-            autor={item.autor}
-            dataAtualizacao={item.dataAtualizacao}
-            tipo={tipo.slice(0, -1) as any}
-          />
-        ))}
+    <div className="min-h-screen bg-bg pt-16">
+      <div className="container mx-auto px-8 py-12 max-w-5xl">
+        <button
+          onClick={() => router.back()}
+          className="mb-6 text-accent hover:text-accent2 transition-colors flex items-center gap-2"
+        >
+          ← Voltar para {typeLabels[tipo]}s
+        </button>
+
+        <ContentCard
+          id={item.id}
+          titulo={item.titulo}
+          conteudo={item.conteudo}
+          subarea={item.subarea}
+          autor={item.autor}
+          dataAtualizacao={item.dataAtualizacao}
+          tipo={tipo.slice(0, -1) as any}
+        />
       </div>
     </div>
   )
