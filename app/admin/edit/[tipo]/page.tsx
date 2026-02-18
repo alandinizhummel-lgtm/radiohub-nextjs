@@ -4,16 +4,46 @@ import { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 
 const SPECS = {
-  neuro: 'Neurorradiologia',
-  cn: 'Cabeça e Pescoço',
-  gi: 'Abdome · Digestivo',
-  gu: 'Abdome · Geniturinário',
-  msk: 'Músculo-Esquelética',
-  mama: 'Mamária',
-  vasc: 'Vascular e Interv.',
-  torax: 'Tórax',
-  us: 'Ultrassonografia',
-  contraste: 'Contraste'
+  neuro: {
+    label: 'Neurorradiologia',
+    subs: ['Encéfalo', 'AVC/Isquemia', 'Neoplasias Intracranianas', 'Infecção/Inflamação', 'Trauma Craniano', 'Malformações Vasculares', 'Coluna Cervical', 'Coluna Torácica', 'Coluna Lombossacra', 'Vascular Cerebral', 'Nervos Cranianos', 'Pediatria Neuro']
+  },
+  cn: {
+    label: 'Cabeça e Pescoço',
+    subs: ['Tireoide/Paratireoide', 'Laringe/Faringe', 'Cavidade Oral/Mandíbula', 'Órbita/Globo Ocular', 'Ouvido/Mastoide', 'Glândulas Salivares', 'Espaços Cervicais', 'Linfonodos Cervicais']
+  },
+  gi: {
+    label: 'Abdome · Digestivo',
+    subs: ['Fígado', 'Vias Biliares/Vesícula', 'Pâncreas', 'Baço', 'Estômago/Esôfago', 'Intestino Delgado', 'Cólon/Reto', 'Peritônio/Mesentério', 'Abdome Agudo']
+  },
+  gu: {
+    label: 'Abdome · Geniturinário',
+    subs: ['Rins', 'Adrenal', 'Bexiga', 'Ureter/Pelve Renal', 'Próstata', 'Testículo/Epidídimo', 'Pênis', 'Útero/Ovários', 'Retroperitônio']
+  },
+  msk: {
+    label: 'Músculo-Esquelética',
+    subs: ['Ombro', 'Cotovelo', 'Punho/Mão', 'Quadril', 'Joelho', 'Tornozelo/Pé', 'Coluna MSK', 'Partes Moles/Músculo', 'Tumores Ósseos/Partes Moles']
+  },
+  mama: {
+    label: 'Mamária',
+    subs: ['Mamografia', 'US Mama', 'RM Mama', 'BI-RADS', 'Mama Masculina', 'Intervenção/Biópsia Mama']
+  },
+  vasc: {
+    label: 'Vascular e Interv.',
+    subs: ['Aorta Torácica', 'Aorta Abdominal', 'Artérias Periféricas', 'Veias/TEP', 'Tórax/Pulmão Vascular', 'Intervenção Arterial', 'Intervenção Venosa', 'Intervenção Não Vascular']
+  },
+  torax: {
+    label: 'Tórax',
+    subs: ['Parênquima Pulmonar', 'Nódulo/Massa Pulmonar', 'Infecção/Pneumonia', 'Interstício/Fibrose', 'DPOC/Enfisema', 'Derrame Pleural/Empiema', 'Mediastino', 'Pleura', 'Trauma Torácico', 'Pediatria Tórax']
+  },
+  us: {
+    label: 'Ultrassonografia',
+    subs: ['Abdome Geral', 'Cervical/Tireoide', 'Ginecologia', 'Obstetrícia', 'Doppler', 'Músculo-esquelético US', 'Rins/Vias/Próstata', 'Testículo/Pênis', 'Tórax US', 'Globo Ocular', 'Transfontanelar', 'Procedimentos US', 'Pediatria US']
+  },
+  contraste: {
+    label: 'Contraste',
+    subs: ['Iodado', 'Gadolínio', 'Reações/Profilaxia']
+  }
 }
 
 interface ContentItem {
@@ -85,21 +115,21 @@ export default function AdminEditor() {
       })
 
       if (response.ok) {
-        alert(editingItem ? 'Item atualizado!' : 'Item criado!')
+        alert(editingItem ? '✅ Item atualizado com sucesso!' : '✅ Item criado com sucesso!')
         resetForm()
         fetchItems()
       } else {
-        alert('Erro ao salvar!')
+        alert('❌ Erro ao salvar!')
       }
     } catch (error) {
-      alert('Erro ao salvar!')
+      alert('❌ Erro ao salvar!')
     } finally {
       setLoading(false)
     }
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Tem certeza que deseja deletar?')) return
+    if (!confirm('⚠️ Tem certeza que deseja deletar este item?')) return
 
     setLoading(true)
     try {
@@ -108,13 +138,13 @@ export default function AdminEditor() {
       })
 
       if (response.ok) {
-        alert('Item deletado!')
+        alert('✅ Item deletado com sucesso!')
         fetchItems()
       } else {
-        alert('Erro ao deletar!')
+        alert('❌ Erro ao deletar!')
       }
     } catch (error) {
-      alert('Erro ao deletar!')
+      alert('❌ Erro ao deletar!')
     } finally {
       setLoading(false)
     }
@@ -127,6 +157,7 @@ export default function AdminEditor() {
     setSubarea(item.subarea || '')
     setAutor(item.autor || 'Dr. Alan')
     setShowForm(true)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   const resetForm = () => {
@@ -180,11 +211,14 @@ export default function AdminEditor() {
           <label className="block text-sm font-semibold text-text mb-2">Especialidade:</label>
           <select
             value={selectedSpec}
-            onChange={(e) => setSelectedSpec(e.target.value)}
+            onChange={(e) => {
+              setSelectedSpec(e.target.value)
+              setSubarea('') // Reseta sub-área ao mudar especialidade
+            }}
             className="px-4 py-2 bg-surface2 border border-border rounded-lg text-text focus:border-accent focus:outline-none"
           >
-            {Object.entries(SPECS).map(([key, label]) => (
-              <option key={key} value={key}>{label}</option>
+            {Object.entries(SPECS).map(([key, spec]) => (
+              <option key={key} value={key}>{spec.label}</option>
             ))}
           </select>
         </div>
@@ -203,7 +237,7 @@ export default function AdminEditor() {
                   value={titulo}
                   onChange={(e) => setTitulo(e.target.value)}
                   className="w-full px-4 py-2 bg-surface2 border border-border rounded-lg text-text focus:border-accent focus:outline-none"
-                  placeholder="Ex: AVC Isquêmico - Resumo Completo"
+                  placeholder="Ex: AVC Isquêmico - Protocolo de Imagem"
                 />
               </div>
 
@@ -212,22 +246,25 @@ export default function AdminEditor() {
                 <textarea
                   value={conteudo}
                   onChange={(e) => setConteudo(e.target.value)}
-                  rows={8}
-                  className="w-full px-4 py-2 bg-surface2 border border-border rounded-lg text-text focus:border-accent focus:outline-none resize-y"
-                  placeholder="Digite o conteúdo completo..."
+                  rows={12}
+                  className="w-full px-4 py-2 bg-surface2 border border-border rounded-lg text-text focus:border-accent focus:outline-none resize-y font-mono text-sm"
+                  placeholder="Digite o conteúdo completo... Use ** para negrito, # para títulos, • para bullets"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-semibold text-text mb-2">Sub-área</label>
-                  <input
-                    type="text"
+                  <label className="block text-sm font-semibold text-text mb-2">Sub-área *</label>
+                  <select
                     value={subarea}
                     onChange={(e) => setSubarea(e.target.value)}
                     className="w-full px-4 py-2 bg-surface2 border border-border rounded-lg text-text focus:border-accent focus:outline-none"
-                    placeholder="Ex: AVC/Isquemia"
-                  />
+                  >
+                    <option value="">Selecione uma sub-área</option>
+                    {SPECS[selectedSpec as keyof typeof SPECS].subs.map((sub) => (
+                      <option key={sub} value={sub}>{sub}</option>
+                    ))}
+                  </select>
                 </div>
 
                 <div>
