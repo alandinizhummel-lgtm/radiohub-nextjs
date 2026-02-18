@@ -1,25 +1,5 @@
 import { NextResponse } from 'next/server'
-import { initializeApp, getApps, cert } from 'firebase-admin/app'
-import { getFirestore } from 'firebase-admin/firestore'
 
-function initAdmin() {
-  if (getApps().length === 0) {
-    let privateKey = process.env.FIREBASE_PRIVATE_KEY || ''
-    if (privateKey.startsWith('"')) privateKey = privateKey.substring(1)
-    if (privateKey.endsWith('"')) privateKey = privateKey.substring(0, privateKey.length - 1)
-    privateKey = privateKey.replace(/\\n/g, '\n')
-
-    initializeApp({
-      credential: cert({
-        projectId: process.env.FIREBASE_PROJECT_ID,
-        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-        privateKey: privateKey,
-      } as any),
-    })
-  }
-}
-
-// CREATE - Adicionar novo item
 export async function POST(
   request: Request,
   { params }: { params: { tipo: string; especialidade: string } }
@@ -28,7 +8,26 @@ export async function POST(
     const { tipo, especialidade } = params
     const body = await request.json()
 
-    initAdmin()
+    // Import dinâmico
+    const { initializeApp, getApps, cert } = await import('firebase-admin/app')
+    const { getFirestore } = await import('firebase-admin/firestore')
+    
+    // Inicializa Firebase
+    if (getApps().length === 0) {
+      let privateKey = process.env.FIREBASE_PRIVATE_KEY || ''
+      if (privateKey.startsWith('"')) privateKey = privateKey.substring(1)
+      if (privateKey.endsWith('"')) privateKey = privateKey.substring(0, privateKey.length - 1)
+      privateKey = privateKey.replace(/\\n/g, '\n')
+
+      initializeApp({
+        credential: cert({
+          projectId: process.env.FIREBASE_PROJECT_ID,
+          clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+          privateKey: privateKey,
+        } as any),
+      })
+    }
+
     const db = getFirestore()
 
     const docRef = await db
@@ -49,17 +48,39 @@ export async function POST(
   }
 }
 
-// UPDATE - Atualizar item existente
 export async function PUT(
   request: Request,
-  { params }: { params: { tipo: string; especialidade: string; id: string[] } }
+  { params }: { params: { tipo: string; especialidade: string; id?: string[] } }
 ) {
   try {
     const { tipo, especialidade, id } = params
+    
+    if (!id || id.length === 0) {
+      return NextResponse.json({ error: 'ID required' }, { status: 400 })
+    }
+    
     const itemId = id[0]
     const body = await request.json()
 
-    initAdmin()
+    // Import dinâmico
+    const { initializeApp, getApps, cert } = await import('firebase-admin/app')
+    const { getFirestore } = await import('firebase-admin/firestore')
+    
+    if (getApps().length === 0) {
+      let privateKey = process.env.FIREBASE_PRIVATE_KEY || ''
+      if (privateKey.startsWith('"')) privateKey = privateKey.substring(1)
+      if (privateKey.endsWith('"')) privateKey = privateKey.substring(0, privateKey.length - 1)
+      privateKey = privateKey.replace(/\\n/g, '\n')
+
+      initializeApp({
+        credential: cert({
+          projectId: process.env.FIREBASE_PROJECT_ID,
+          clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+          privateKey: privateKey,
+        } as any),
+      })
+    }
+
     const db = getFirestore()
 
     await db
@@ -78,16 +99,38 @@ export async function PUT(
   }
 }
 
-// DELETE - Remover item
 export async function DELETE(
   request: Request,
-  { params }: { params: { tipo: string; especialidade: string; id: string[] } }
+  { params }: { params: { tipo: string; especialidade: string; id?: string[] } }
 ) {
   try {
     const { tipo, especialidade, id } = params
+    
+    if (!id || id.length === 0) {
+      return NextResponse.json({ error: 'ID required' }, { status: 400 })
+    }
+    
     const itemId = id[0]
 
-    initAdmin()
+    // Import dinâmico
+    const { initializeApp, getApps, cert } = await import('firebase-admin/app')
+    const { getFirestore } = await import('firebase-admin/firestore')
+    
+    if (getApps().length === 0) {
+      let privateKey = process.env.FIREBASE_PRIVATE_KEY || ''
+      if (privateKey.startsWith('"')) privateKey = privateKey.substring(1)
+      if (privateKey.endsWith('"')) privateKey = privateKey.substring(0, privateKey.length - 1)
+      privateKey = privateKey.replace(/\\n/g, '\n')
+
+      initializeApp({
+        credential: cert({
+          projectId: process.env.FIREBASE_PROJECT_ID,
+          clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+          privateKey: privateKey,
+        } as any),
+      })
+    }
+
     const db = getFirestore()
 
     await db
@@ -105,29 +148,3 @@ export async function DELETE(
     )
   }
 }
-```
-
----
-
-## 🎯 COMO CRIAR:
-
-1. **GitHub → Add file → Create new file**
-2. **Nome:** `app/api/admin/content/[tipo]/[especialidade]/[[...id]]/route.ts`
-   - ⚠️ **COPIA EXATAMENTE ASSIM!** Com todos os colchetes
-3. **COPIA TODO O CÓDIGO ACIMA ☝️**
-4. **COLA**
-5. **Commit:** `Add admin CRUD API`
-6. **Commit!** ✅
-
----
-
-## 📂 ESTRUTURA:
-```
-app/
-└── api/
-    └── admin/
-        └── content/
-            └── [tipo]/
-                └── [especialidade]/
-                    └── [[...id]]/
-                        └── route.ts  ← CRIAR AQUI
