@@ -56,25 +56,53 @@ const SPECS = {
   }
 }
 
-// Calculadoras por especialidade
-const CALCULADORAS = {
-  neuro: ['Escala NIHSS', 'ASPECTS Score'],
-  gi: ['Child-Pugh', 'MELD Score'],
-  gu: ['eGFR (CKD-EPI)', 'PSA Density'],
-  mama: ['BI-RADS Calculator'],
-  msk: ['Gartland Classification'],
-  us: ['Resistive Index'],
-  contraste: ['eGFR para Contraste']
+const CALCULADORAS_POR_SPEC: Record<string, Array<{nome: string, descricao: string}>> = {
+  neuro: [
+    { nome: 'Escala NIHSS', descricao: 'Gravidade do AVC isquêmico' },
+    { nome: 'ASPECTS Score', descricao: 'Extensão de isquemia no território da ACM' }
+  ],
+  gi: [
+    { nome: 'Child-Pugh', descricao: 'Classificação de cirrose hepática' },
+    { nome: 'MELD Score', descricao: 'Gravidade de doença hepática' }
+  ],
+  gu: [
+    { nome: 'eGFR (CKD-EPI)', descricao: 'Taxa de filtração glomerular estimada' },
+    { nome: 'PSA Density', descricao: 'Densidade de PSA por volume prostático' }
+  ],
+  mama: [
+    { nome: 'BI-RADS', descricao: 'Classificação de achados mamográficos' }
+  ],
+  us: [
+    { nome: 'Índice de Resistividade', descricao: 'Cálculo de IR ao Doppler' }
+  ],
+  contraste: [
+    { nome: 'eGFR para Contraste', descricao: 'Segurança de administração de contraste' }
+  ]
 }
 
-// Geradores por especialidade
-const GERADORES = {
-  neuro: ['RM Encéfalo', 'TC Crânio'],
-  cn: ['RM Pescoço', 'TC Seios da Face'],
-  gi: ['RM Abdome', 'TC Abdome'],
-  gu: ['RM Próstata', 'Eco Renal'],
-  torax: ['TC Tórax', 'RX Tórax'],
-  vasc: ['AngioTC', 'Doppler']
+const GERADORES_POR_SPEC: Record<string, Array<{nome: string, descricao: string}>> = {
+  neuro: [
+    { nome: 'RM Encéfalo', descricao: 'Gerador de laudo de RM de crânio' },
+    { nome: 'TC Crânio', descricao: 'Gerador de laudo de TC de crânio' }
+  ],
+  cn: [
+    { nome: 'RM Pescoço', descricao: 'Gerador de laudo de RM cervical' },
+    { nome: 'TC Seios da Face', descricao: 'Gerador de laudo de TC de seios paranasais' }
+  ],
+  gi: [
+    { nome: 'RM Abdome', descricao: 'Gerador de laudo de RM abdominal' },
+    { nome: 'TC Abdome', descricao: 'Gerador de laudo de TC abdominal' }
+  ],
+  gu: [
+    { nome: 'RM Próstata (PI-RADS)', descricao: 'Gerador de laudo estruturado' }
+  ],
+  torax: [
+    { nome: 'TC Tórax', descricao: 'Gerador de laudo de TC de tórax' },
+    { nome: 'RX Tórax', descricao: 'Gerador de laudo de radiografia' }
+  ],
+  vasc: [
+    { nome: 'AngioTC', descricao: 'Gerador de laudo de angiotomografia' }
+  ]
 }
 
 export default function Home() {
@@ -117,7 +145,7 @@ export default function Home() {
               onClick={() => setCurrentSection('home')}
               className="text-2xl font-bold text-accent2 hover:text-accent transition-colors"
             >
-              RadioHub <span className="text-sm text-text3 font-normal">v9.0 Next.js</span>
+              RadioHub <span className="text-sm text-text3 font-normal">v9.1 Next.js</span>
             </button>
             
             <nav className="flex gap-1.5">
@@ -189,9 +217,9 @@ export default function Home() {
             <select 
               value={currentSubArea}
               onChange={(e) => setCurrentSubArea(e.target.value)}
-              className="px-4 py-2 rounded-lg bg-surface2 text-text border border-border hover:border-accent/50 focus:border-accent focus:outline-none transition-all cursor-pointer"
+              className="px-4 py-2 rounded-lg bg-surface2 text-text border border-border hover:border-accent/50 focus:border-accent focus:outline-none transition-all cursor-pointer text-sm"
             >
-              <option value="all">⊕ Todas</option>
+              <option value="all">⊕ Todas as sub-áreas</option>
               {SPECS[currentSpec as keyof typeof SPECS].subs.map(sub => (
                 <option key={sub} value={sub}>{sub}</option>
               ))}
@@ -218,10 +246,10 @@ export default function Home() {
                   Ferramentas para <span className="bg-gradient-to-r from-accent2 to-accent bg-clip-text text-transparent">radiologistas</span>
                 </h1>
                 <p className="text-xl text-text2 mb-4">
-                  Calculadoras, resumos, geradores e checklists — por especialidade, em painel lateral.
+                  Calculadoras, resumos, geradores e checklists — por especialidade.
                 </p>
                 <p className="text-sm text-text3">
-                  🔥 Firebase Integration v9.0 - FUNCIONANDO!
+                  🔥 v9.1 - Firebase Integration Completa
                 </p>
               </div>
             </div>
@@ -253,57 +281,81 @@ export default function Home() {
 
           {currentSection === 'calculadoras' && (
             <div>
-              <h2 className="text-3xl font-bold mb-8 flex items-center gap-3 text-text">
-                🧮 Calculadoras
-                <span className="text-text3 text-lg font-normal">
+              <div className="mb-8">
+                <h2 className="text-3xl font-bold flex items-center gap-3 text-text mb-2">
+                  🧮 Calculadoras Médicas
+                </h2>
+                <p className="text-text2">
                   {SPECS[currentSpec as keyof typeof SPECS].icon} {SPECS[currentSpec as keyof typeof SPECS].label}
-                </span>
-              </h2>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {CALCULADORAS[currentSpec as keyof typeof CALCULADORAS]?.map((calc, index) => (
-                  <div key={index} className="bg-surface border border-border rounded-xl p-6 hover:border-accent/30 transition-all">
-                    <h3 className="text-lg font-semibold text-text mb-2">🧮 {calc}</h3>
-                    <p className="text-sm text-text3 mb-4">Calculadora em desenvolvimento</p>
-                    <button className="px-4 py-2 bg-accent/10 text-accent rounded-lg hover:bg-accent/20 transition-all text-sm font-semibold">
-                      Em breve
-                    </button>
-                  </div>
-                )) || (
-                  <div className="col-span-full bg-surface border border-border rounded-xl p-12 text-center">
-                    <div className="text-6xl mb-4">🧮</div>
-                    <p className="text-text2 text-xl">Nenhuma calculadora disponível para esta especialidade</p>
-                  </div>
-                )}
+                </p>
               </div>
+              
+              {CALCULADORAS_POR_SPEC[currentSpec] && CALCULADORAS_POR_SPEC[currentSpec].length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {CALCULADORAS_POR_SPEC[currentSpec].map((calc, index) => (
+                    <div key={index} className="bg-surface border border-border rounded-xl p-6 hover:border-accent/50 hover:shadow-lg transition-all group">
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="flex items-center gap-3">
+                          <div className="text-3xl">🧮</div>
+                          <div>
+                            <h3 className="text-lg font-bold text-text group-hover:text-accent transition-colors">{calc.nome}</h3>
+                            <p className="text-sm text-text3">{calc.descricao}</p>
+                          </div>
+                        </div>
+                      </div>
+                      <button className="w-full px-4 py-2 bg-accent/10 text-accent rounded-lg hover:bg-accent hover:text-white transition-all text-sm font-semibold">
+                        🚧 Em desenvolvimento
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="bg-surface border border-border rounded-xl p-16 text-center">
+                  <div className="text-6xl mb-4 opacity-50">🧮</div>
+                  <p className="text-xl text-text2 mb-2">Nenhuma calculadora disponível</p>
+                  <p className="text-sm text-text3">Selecione outra especialidade ou aguarde novas adições</p>
+                </div>
+              )}
             </div>
           )}
 
           {currentSection === 'geradores' && (
             <div>
-              <h2 className="text-3xl font-bold mb-8 flex items-center gap-3 text-text">
-                ⚙️ Geradores
-                <span className="text-text3 text-lg font-normal">
+              <div className="mb-8">
+                <h2 className="text-3xl font-bold flex items-center gap-3 text-text mb-2">
+                  ⚙️ Geradores de Laudo
+                </h2>
+                <p className="text-text2">
                   {SPECS[currentSpec as keyof typeof SPECS].icon} {SPECS[currentSpec as keyof typeof SPECS].label}
-                </span>
-              </h2>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {GERADORES[currentSpec as keyof typeof GERADORES]?.map((ger, index) => (
-                  <div key={index} className="bg-surface border border-border rounded-xl p-6 hover:border-accent/30 transition-all">
-                    <h3 className="text-lg font-semibold text-text mb-2">⚙️ {ger}</h3>
-                    <p className="text-sm text-text3 mb-4">Gerador automático de laudo</p>
-                    <button className="px-4 py-2 bg-accent/10 text-accent rounded-lg hover:bg-accent/20 transition-all text-sm font-semibold">
-                      Em breve
-                    </button>
-                  </div>
-                )) || (
-                  <div className="col-span-full bg-surface border border-border rounded-xl p-12 text-center">
-                    <div className="text-6xl mb-4">⚙️</div>
-                    <p className="text-text2 text-xl">Nenhum gerador disponível para esta especialidade</p>
-                  </div>
-                )}
+                </p>
               </div>
+              
+              {GERADORES_POR_SPEC[currentSpec] && GERADORES_POR_SPEC[currentSpec].length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {GERADORES_POR_SPEC[currentSpec].map((ger, index) => (
+                    <div key={index} className="bg-surface border border-border rounded-xl p-6 hover:border-accent/50 hover:shadow-lg transition-all group">
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="flex items-center gap-3">
+                          <div className="text-3xl">⚙️</div>
+                          <div>
+                            <h3 className="text-lg font-bold text-text group-hover:text-accent transition-colors">{ger.nome}</h3>
+                            <p className="text-sm text-text3">{ger.descricao}</p>
+                          </div>
+                        </div>
+                      </div>
+                      <button className="w-full px-4 py-2 bg-accent/10 text-accent rounded-lg hover:bg-accent hover:text-white transition-all text-sm font-semibold">
+                        🚧 Em desenvolvimento
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="bg-surface border border-border rounded-xl p-16 text-center">
+                  <div className="text-6xl mb-4 opacity-50">⚙️</div>
+                  <p className="text-xl text-text2 mb-2">Nenhum gerador disponível</p>
+                  <p className="text-sm text-text3">Selecione outra especialidade ou aguarde novas adições</p>
+                </div>
+              )}
             </div>
           )}
           
