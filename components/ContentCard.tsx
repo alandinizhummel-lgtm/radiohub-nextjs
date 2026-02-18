@@ -42,46 +42,87 @@ export default function ContentCard({
     video: '🎬'
   }
 
-  // Renderiza conteúdo com formatação básica
   const renderContent = (text: string) => {
-    return text.split('\n').map((line, i) => {
-      // Títulos em negrito
+    const lines = text.split('\n')
+    const elements: JSX.Element[] = []
+    let i = 0
+
+    while (i < lines.length) {
+      const line = lines[i]
+
+      if (line.trim().startsWith('IMG:')) {
+        const imageUrl = line.replace('IMG:', '').trim()
+        let caption = ''
+        
+        if (i + 1 < lines.length && lines[i + 1].trim().startsWith('LEGENDA:')) {
+          caption = lines[i + 1].replace('LEGENDA:', '').trim()
+          i++
+        }
+
+        elements.push(
+          <div key={i} className="my-6 bg-surface2 rounded-lg overflow-hidden border border-border">
+            <img 
+              src={imageUrl} 
+              alt={caption}
+              className="w-full h-auto"
+              onError={(e) => {
+                e.currentTarget.src = 'https://via.placeholder.com/800x400/1a1a1a/666666?text=Imagem+não+encontrada'
+              }}
+            />
+            {caption && (
+              <div className="px-4 py-3 bg-surface border-t border-border">
+                <p className="text-sm text-text3 italic">
+                  📷 {caption}
+                </p>
+              </div>
+            )}
+          </div>
+        )
+        i++
+        continue
+      }
+
       if (line.startsWith('**') && line.endsWith('**')) {
-        return (
+        elements.push(
           <div key={i} className="font-bold text-lg text-accent mt-4 mb-2">
             {line.replace(/\*\*/g, '')}
           </div>
         )
+        i++
+        continue
       }
       
-      // Subtítulos
       if (line.startsWith('# ')) {
-        return (
+        elements.push(
           <div key={i} className="font-bold text-base text-text mt-3 mb-1">
             {line.replace('# ', '')}
           </div>
         )
+        i++
+        continue
       }
       
-      // Bullets
       if (line.startsWith('• ') || line.startsWith('- ')) {
-        return (
+        elements.push(
           <div key={i} className="ml-4 text-text2 text-sm mb-1">
             {line}
           </div>
         )
+        i++
+        continue
       }
       
-      // Tabelas (detecta linhas com |)
       if (line.includes('|')) {
         const cells = line.split('|').filter(c => c.trim())
         const isHeader = line.includes('---')
         
         if (isHeader) {
-          return <div key={i} className="border-t border-border my-2" />
+          elements.push(<div key={i} className="border-t border-border my-2" />)
+          i++
+          continue
         }
         
-        return (
+        elements.push(
           <div key={i} className="grid grid-cols-3 gap-2 text-xs mb-1">
             {cells.map((cell, j) => (
               <div key={j} className={`${j === 0 ? 'font-bold text-accent' : 'text-text3'} px-2`}>
@@ -90,33 +131,40 @@ export default function ContentCard({
             ))}
           </div>
         )
+        i++
+        continue
       }
       
-      // Divisores
       if (line.trim() === '---') {
-        return <hr key={i} className="my-4 border-border" />
+        elements.push(<hr key={i} className="my-4 border-border" />)
+        i++
+        continue
       }
       
-      // Alertas/Destaques
       if (line.startsWith('⚠️') || line.startsWith('✓') || line.startsWith('❗')) {
-        return (
+        elements.push(
           <div key={i} className="bg-accent/10 border-l-4 border-accent px-3 py-2 my-2 text-sm text-text">
             {line}
           </div>
         )
+        i++
+        continue
       }
       
-      // Texto normal
       if (line.trim()) {
-        return (
+        elements.push(
           <p key={i} className="text-text2 text-sm mb-2 leading-relaxed">
             {line}
           </p>
         )
+      } else {
+        elements.push(<br key={i} />)
       }
       
-      return <br key={i} />
-    })
+      i++
+    }
+
+    return elements
   }
 
   return (
