@@ -32,7 +32,7 @@ export default function ContentList({ tipo, especialidade, subarea }: ContentLis
       setLoading(true)
       setError(null)
       
-      const response = await fetch(`/api/content/${tipo}/${especialidade}/${subarea}`)
+      const response = await fetch(`/api/content/${tipo}/${especialidade}/${encodeURIComponent(subarea)}`)
       
       if (!response.ok) {
         throw new Error('Failed to fetch content')
