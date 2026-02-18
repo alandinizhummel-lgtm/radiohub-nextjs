@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import ContentList from '../components/ContentList'
 
 const SPECS = {
@@ -111,13 +111,13 @@ export default function Home() {
   const [currentSection, setCurrentSection] = useState('home')
   const [theme, setTheme] = useState<'dark' | 'light'>('dark')
   const [dropdownOpen, setDropdownOpen] = useState(false)
-  const [specsMenuOpen, setSpecsMenuOpen] = useState(false)
+  const dropdownRef = useRef<HTMLDivElement>(null)
+  const buttonRef = useRef<HTMLButtonElement>(null)
 
   const handleSpecChange = (spec: string) => {
     setCurrentSpec(spec)
     setCurrentSubArea('all')
     setDropdownOpen(false)
-    setSpecsMenuOpen(false)
   }
 
   const toggleTheme = () => {
@@ -137,6 +137,23 @@ export default function Home() {
     }
   }, [])
 
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        dropdownOpen &&
+        dropdownRef.current &&
+        buttonRef.current &&
+        !dropdownRef.current.contains(event.target as Node) &&
+        !buttonRef.current.contains(event.target as Node)
+      ) {
+        setDropdownOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [dropdownOpen])
+
   const usesFirebase = ['resumos', 'artigos', 'mascaras', 'frases', 'checklists', 'tutoriais', 'videos'].includes(currentSection)
   const usesSpecs = usesFirebase || currentSection === 'calculadoras' || currentSection === 'geradores'
 
@@ -149,7 +166,7 @@ export default function Home() {
               onClick={() => setCurrentSection('home')}
               className="text-2xl font-bold text-accent2 hover:text-accent transition-colors"
             >
-              RadioHub <span className="text-sm text-text3 font-normal">v10.0</span>
+              RadioHub <span className="text-sm text-text3 font-normal">v9.1</span>
             </button>
             
             <nav className="flex gap-1.5">
@@ -196,110 +213,79 @@ export default function Home() {
       </header>
 
       {currentSection !== 'home' && usesSpecs && (
-        <>
-          <div className="fixed top-16 left-0 right-0 bg-surface border-b border-accent/30 z-40 py-2">
-            <div className="container mx-auto px-8">
+        <div className="fixed top-16 left-0 right-0 bg-surface border-b border-accent/30 z-40">
+          <div className="container mx-auto px-8 py-2 flex flex-wrap items-center gap-1.5">
+            {Object.entries(SPECS).map(([key, spec]) => (
               <button
-                onClick={() => setSpecsMenuOpen(!specsMenuOpen)}
-                className="px-4 py-2 bg-surface2 border border-border rounded-lg hover:border-accent/50 transition-all flex items-center gap-2 text-sm font-medium text-text"
+                key={key}
+                ref={currentSpec === key ? buttonRef : null}
+                onClick={() => handleSpecChange(key)}
+                className={`px-3 py-2 rounded text-xs font-semibold whitespace-nowrap transition-all relative ${
+                  currentSpec === key
+                    ? 'bg-accent text-white shadow-md'
+                    : 'bg-surface2 text-text2 hover:bg-border2 hover:text-text'
+                }`}
               >
-                <span>{SPECS[currentSpec as keyof typeof SPECS].icon}</span>
-                <span>{SPECS[currentSpec as keyof typeof SPECS].label}</span>
-                <span className={`transition-transform ${specsMenuOpen ? 'rotate-180' : ''}`}>▼</span>
-              </button>
-            </div>
-          </div>
-
-          {specsMenuOpen && (
-            <>
-              <div 
-                className="fixed inset-0 z-30" 
-                style={{top: '95px'}}
-                onClick={() => setSpecsMenuOpen(false)}
-              />
-              <div className="fixed bg-surface border-b border-accent/30 z-40 shadow-2xl" style={{top: '95px', left: 0, right: 0}}>
-                <div className="container mx-auto px-8 py-3 flex flex-wrap items-center gap-1.5">
-                  {Object.entries(SPECS).map(([key, spec]) => (
+                {spec.icon} {spec.label}
+                
+                {currentSpec === key && usesFirebase && spec.subs.length > 0 && (
+                  <>
                     <button
-                      key={key}
-                      onClick={() => handleSpecChange(key)}
-                      className={`px-3 py-1 rounded text-xs font-semibold whitespace-nowrap transition-all ${
-                        currentSpec === key
-                          ? 'bg-accent text-white shadow-md'
-                          : 'bg-surface2 text-text2 hover:bg-border2 hover:text-text'
-                      }`}
-                    >
-                      {spec.icon} {spec.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </>
-          )}
-        </>
-      )}
-
-      {currentSection !== 'home' && usesFirebase && SPECS[currentSpec as keyof typeof SPECS].subs.length > 0 && (
-        <div className="fixed z-50" style={{top: '95px', left: 0, right: 0}}>
-          <div className="container mx-auto px-8 py-2">
-            <div className="relative inline-block">
-              <button
-                onClick={() => setDropdownOpen(!dropdownOpen)}
-                className="px-4 py-2 bg-surface2 text-text border border-border rounded-lg hover:border-accent/50 transition-all flex items-center gap-2 text-sm font-medium"
-              >
-                <span>{currentSubArea === 'all' ? '⊕ Todas as sub-áreas' : currentSubArea}</span>
-                <span className={`transition-transform ${dropdownOpen ? 'rotate-180' : ''}`}>▼</span>
-              </button>
-              
-              {dropdownOpen && (
-                <>
-                  <div 
-                    className="fixed inset-0 z-10" 
-                    onClick={() => setDropdownOpen(false)}
-                  />
-                  <div className="absolute top-full left-0 mt-2 w-64 bg-surface border border-border rounded-lg shadow-xl max-h-96 overflow-y-auto z-20">
-                    <button
-                      onClick={() => {
-                        setCurrentSubArea('all')
-                        setDropdownOpen(false)
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setDropdownOpen(!dropdownOpen)
                       }}
-                      className={`w-full text-left px-4 py-2 text-sm hover:bg-accent/10 transition-colors ${
-                        currentSubArea === 'all' ? 'bg-accent/20 text-accent font-semibold' : 'text-text'
-                      }`}
+                      className="ml-2 inline-flex items-center"
                     >
-                      ⊕ Todas as sub-áreas
+                      <span className={`transition-transform ${dropdownOpen ? 'rotate-180' : ''}`}>▼</span>
                     </button>
-                    {SPECS[currentSpec as keyof typeof SPECS].subs.map(sub => (
-                      <button
-                        key={sub}
-                        onClick={() => {
-                          setCurrentSubArea(sub)
-                          setDropdownOpen(false)
-                        }}
-                        className={`w-full text-left px-4 py-2 text-sm hover:bg-accent/10 transition-colors ${
-                          currentSubArea === sub ? 'bg-accent/20 text-accent font-semibold' : 'text-text'
-                        }`}
-                      >
-                        {sub}
-                      </button>
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
+                    
+                    {dropdownOpen && (
+                      <>
+                        <div className="fixed inset-0 z-10" onClick={() => setDropdownOpen(false)} />
+                        <div
+                          ref={dropdownRef}
+                          className="absolute top-full left-0 mt-2 w-64 bg-surface border border-border rounded-lg shadow-xl max-h-96 overflow-y-auto z-20"
+                        >
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setCurrentSubArea('all')
+                              setDropdownOpen(false)
+                            }}
+                            className={`w-full text-left px-4 py-2 text-sm hover:bg-accent/10 transition-colors ${
+                              currentSubArea === 'all' ? 'bg-accent/20 text-accent font-semibold' : 'text-text'
+                            }`}
+                          >
+                            ⊕ Todas as sub-áreas
+                          </button>
+                          {spec.subs.map(sub => (
+                            <button
+                              key={sub}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setCurrentSubArea(sub)
+                                setDropdownOpen(false)
+                              }}
+                              className={`w-full text-left px-4 py-2 text-sm hover:bg-accent/10 transition-colors ${
+                                currentSubArea === sub ? 'bg-accent/20 text-accent font-semibold' : 'text-text'
+                              }`}
+                            >
+                              {sub}
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </>
+                )}
+              </button>
+            ))}
           </div>
         </div>
       )}
 
-      <main className={`${
-        currentSection === 'home' 
-          ? 'pt-16' 
-          : usesFirebase
-          ? 'pt-[105px]'
-          : usesSpecs
-          ? 'pt-[95px]'
-          : 'pt-16'
-      } min-h-screen`}>
+      <main className={`${currentSection === 'home' ? 'pt-16' : usesSpecs ? 'pt-[110px]' : 'pt-16'} min-h-screen`}>
         <div className="container mx-auto px-8 py-12">
           
           {currentSection === 'home' && (
@@ -365,24 +351,24 @@ export default function Home() {
                       </div>
                     </div>
                     <div className="flex items-start gap-3 pb-3 border-b border-border">
-                      <div className="text-2xl">🧮</div>
+                      <div className="text-2xl">🖼️</div>
                       <div className="flex-1">
-                        <div className="text-sm font-semibold text-text">Calculadora eGFR</div>
-                        <div className="text-xs text-text3">Em desenvolvimento • 17/02/2025</div>
+                        <div className="text-sm font-semibold text-text">Suporte a Imagens</div>
+                        <div className="text-xs text-text3">Imagens com legendas • Hoje</div>
                       </div>
                     </div>
                     <div className="flex items-start gap-3 pb-3 border-b border-border">
-                      <div className="text-2xl">⚙️</div>
+                      <div className="text-2xl">🔐</div>
                       <div className="flex-1">
-                        <div className="text-sm font-semibold text-text">Gerador RM Próstata</div>
-                        <div className="text-xs text-text3">Em desenvolvimento • 16/02/2025</div>
+                        <div className="text-sm font-semibold text-text">Admin Panel</div>
+                        <div className="text-xs text-text3">CRUD completo • Hoje</div>
                       </div>
                     </div>
                     <div className="flex items-start gap-3">
                       <div className="text-2xl">🔥</div>
                       <div className="flex-1">
-                        <div className="text-sm font-semibold text-text">v10.0 - Menu Retrátil</div>
-                        <div className="text-xs text-text3">Especialidades com menu retrátil • Hoje</div>
+                        <div className="text-sm font-semibold text-text">v9.1 - Dropdown Fixo</div>
+                        <div className="text-xs text-text3">Sub-áreas com dropdown • Hoje</div>
                       </div>
                     </div>
                   </div>
@@ -407,9 +393,9 @@ export default function Home() {
                     </div>
                   </div>
                   <div className="bg-surface/50 rounded-lg p-4 border border-accent/20">
-                    <div className="text-sm font-semibold text-text mb-2">🚀 v10.0 - Menu Retrátil</div>
+                    <div className="text-sm font-semibold text-text mb-2">🚀 v9.1 - Dropdown Funcional</div>
                     <div className="text-xs text-text3 leading-relaxed">
-                      Menu de especialidades agora é retrátil - só aparece quando você clica. Interface mais clean e profissional!
+                      Dropdown de sub-áreas abaixo do botão da especialidade, interface limpa e organizada com suporte a imagens!
                     </div>
                   </div>
                 </div>
