@@ -56,6 +56,27 @@ const SPECS = {
   }
 }
 
+// Calculadoras por especialidade
+const CALCULADORAS = {
+  neuro: ['Escala NIHSS', 'ASPECTS Score'],
+  gi: ['Child-Pugh', 'MELD Score'],
+  gu: ['eGFR (CKD-EPI)', 'PSA Density'],
+  mama: ['BI-RADS Calculator'],
+  msk: ['Gartland Classification'],
+  us: ['Resistive Index'],
+  contraste: ['eGFR para Contraste']
+}
+
+// Geradores por especialidade
+const GERADORES = {
+  neuro: ['RM Encéfalo', 'TC Crânio'],
+  cn: ['RM Pescoço', 'TC Seios da Face'],
+  gi: ['RM Abdome', 'TC Abdome'],
+  gu: ['RM Próstata', 'Eco Renal'],
+  torax: ['TC Tórax', 'RX Tórax'],
+  vasc: ['AngioTC', 'Doppler']
+}
+
 export default function Home() {
   const [currentSpec, setCurrentSpec] = useState('neuro')
   const [currentSubArea, setCurrentSubArea] = useState('all')
@@ -85,6 +106,7 @@ export default function Home() {
   }, [])
 
   const usesFirebase = ['resumos', 'artigos', 'mascaras', 'frases', 'checklists', 'tutoriais', 'videos'].includes(currentSection)
+  const usesSpecs = usesFirebase || currentSection === 'calculadoras' || currentSection === 'geradores'
 
   return (
     <div className="min-h-screen">
@@ -141,7 +163,7 @@ export default function Home() {
         </div>
       </header>
 
-      {currentSection !== 'home' && usesFirebase && (
+      {currentSection !== 'home' && usesSpecs && (
         <div className="fixed top-16 left-0 right-0 bg-surface border-b border-accent/30 z-40 py-1.5">
           <div className="container mx-auto px-8 flex flex-wrap items-center gap-1.5">
             {Object.entries(SPECS).map(([key, spec]) => (
@@ -162,31 +184,18 @@ export default function Home() {
       )}
 
       {currentSection !== 'home' && usesFirebase && SPECS[currentSpec as keyof typeof SPECS].subs.length > 0 && (
-        <div className="fixed bg-surface border-b border-accent/30 z-50 py-1.5" style={{top: '95px', left: 0, right: 0}}>
-          <div className="container mx-auto px-8 flex flex-wrap items-center gap-1.5">
-            <button 
-              onClick={() => setCurrentSubArea('all')}
-              className={`px-3 py-1 rounded text-xs font-semibold whitespace-nowrap transition-all ${
-                currentSubArea === 'all' 
-                  ? 'bg-accent text-white shadow-md'
-                  : 'bg-surface2 text-text hover:bg-border2'
-              }`}
+        <div className="fixed bg-surface border-b border-accent/30 z-50 py-2" style={{top: '95px', left: 0, right: 0}}>
+          <div className="container mx-auto px-8">
+            <select 
+              value={currentSubArea}
+              onChange={(e) => setCurrentSubArea(e.target.value)}
+              className="px-4 py-2 rounded-lg bg-surface2 text-text border border-border hover:border-accent/50 focus:border-accent focus:outline-none transition-all cursor-pointer"
             >
-              Todas
-            </button>
-            {SPECS[currentSpec as keyof typeof SPECS].subs.map(sub => (
-              <button
-                key={sub}
-                onClick={() => setCurrentSubArea(sub)}
-                className={`px-3 py-1 rounded text-xs font-semibold whitespace-nowrap transition-all ${
-                  currentSubArea === sub
-                    ? 'bg-accent text-white shadow-md'
-                    : 'bg-surface2 text-text hover:bg-border2'
-                }`}
-              >
-                {sub}
-              </button>
-            ))}
+              <option value="all">⊕ Todas</option>
+              {SPECS[currentSpec as keyof typeof SPECS].subs.map(sub => (
+                <option key={sub} value={sub}>{sub}</option>
+              ))}
+            </select>
           </div>
         </div>
       )}
@@ -195,7 +204,9 @@ export default function Home() {
         currentSection === 'home' 
           ? 'pt-16' 
           : usesFirebase
-          ? 'pt-[150px]'
+          ? 'pt-[140px]'
+          : usesSpecs
+          ? 'pt-[95px]'
           : 'pt-16'
       } min-h-screen`}>
         <div className="container mx-auto px-8 py-12">
@@ -240,22 +251,58 @@ export default function Home() {
             </div>
           )}
 
-          {currentSection !== 'home' && !usesFirebase && (
+          {currentSection === 'calculadoras' && (
             <div>
               <h2 className="text-3xl font-bold mb-8 flex items-center gap-3 text-text">
-                {currentSection === 'calculadoras' && '🧮 Calculadoras'}
-                {currentSection === 'geradores' && '⚙️ Geradores'}
+                🧮 Calculadoras
+                <span className="text-text3 text-lg font-normal">
+                  {SPECS[currentSpec as keyof typeof SPECS].icon} {SPECS[currentSpec as keyof typeof SPECS].label}
+                </span>
               </h2>
               
-              <div className="bg-surface border border-border rounded-xl p-12 text-center">
-                <div className="text-6xl mb-4">🚧</div>
-                <p className="text-text2 text-xl mb-4">
-                  {currentSection === 'calculadoras' && 'Calculadoras médicas (eGFR, TI-RADS, BI-RADS, Bosniak)'}
-                  {currentSection === 'geradores' && 'Geradores automáticos de laudo (RM Cardíaca)'}
-                </p>
-                <p className="text-sm text-text3">
-                  Próxima etapa de desenvolvimento
-                </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {CALCULADORAS[currentSpec as keyof typeof CALCULADORAS]?.map((calc, index) => (
+                  <div key={index} className="bg-surface border border-border rounded-xl p-6 hover:border-accent/30 transition-all">
+                    <h3 className="text-lg font-semibold text-text mb-2">🧮 {calc}</h3>
+                    <p className="text-sm text-text3 mb-4">Calculadora em desenvolvimento</p>
+                    <button className="px-4 py-2 bg-accent/10 text-accent rounded-lg hover:bg-accent/20 transition-all text-sm font-semibold">
+                      Em breve
+                    </button>
+                  </div>
+                )) || (
+                  <div className="col-span-full bg-surface border border-border rounded-xl p-12 text-center">
+                    <div className="text-6xl mb-4">🧮</div>
+                    <p className="text-text2 text-xl">Nenhuma calculadora disponível para esta especialidade</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {currentSection === 'geradores' && (
+            <div>
+              <h2 className="text-3xl font-bold mb-8 flex items-center gap-3 text-text">
+                ⚙️ Geradores
+                <span className="text-text3 text-lg font-normal">
+                  {SPECS[currentSpec as keyof typeof SPECS].icon} {SPECS[currentSpec as keyof typeof SPECS].label}
+                </span>
+              </h2>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {GERADORES[currentSpec as keyof typeof GERADORES]?.map((ger, index) => (
+                  <div key={index} className="bg-surface border border-border rounded-xl p-6 hover:border-accent/30 transition-all">
+                    <h3 className="text-lg font-semibold text-text mb-2">⚙️ {ger}</h3>
+                    <p className="text-sm text-text3 mb-4">Gerador automático de laudo</p>
+                    <button className="px-4 py-2 bg-accent/10 text-accent rounded-lg hover:bg-accent/20 transition-all text-sm font-semibold">
+                      Em breve
+                    </button>
+                  </div>
+                )) || (
+                  <div className="col-span-full bg-surface border border-border rounded-xl p-12 text-center">
+                    <div className="text-6xl mb-4">⚙️</div>
+                    <p className="text-text2 text-xl">Nenhum gerador disponível para esta especialidade</p>
+                  </div>
+                )}
               </div>
             </div>
           )}
