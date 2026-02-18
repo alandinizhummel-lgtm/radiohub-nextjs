@@ -212,7 +212,7 @@ export default function Home() {
 
       {currentSection !== 'home' && usesSpecs && (
         <div className="fixed top-16 left-0 right-0 bg-surface border-b border-accent/30 z-40">
-          <div className="container mx-auto px-8 py-1.5 flex items-center gap-1.5 relative">
+          <div className="container mx-auto px-8 py-2 flex flex-wrap items-center gap-1.5 relative">
             {Object.entries(SPECS).map(([key, spec]) => {
               const isActive = currentSpec === key
               return (
@@ -281,7 +281,7 @@ export default function Home() {
         currentSection === 'home' 
           ? 'pt-16' 
           : usesSpecs
-          ? 'pt-[95px]'
+          ? 'pt-[110px]'
           : 'pt-16'
       } min-h-screen`}>
         <div className="container mx-auto px-8 py-12">
