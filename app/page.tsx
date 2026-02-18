@@ -288,140 +288,172 @@ export default function Home() {
           
           {currentSection === 'home' && (
             <div>
-              <div className="text-center max-w-4xl mx-auto mb-16">
-                <h1 className="text-6xl font-bold mb-6 text-text">
+              <div className="text-center max-w-4xl mx-auto mb-12">
+                <h1 className="text-5xl font-bold mb-4 text-text">
                   Ferramentas para <span className="bg-gradient-to-r from-accent2 to-accent bg-clip-text text-transparent">radiologistas</span>
                 </h1>
-                <p className="text-xl text-text2 mb-8">
+                <p className="text-lg text-text2 mb-6">
                   Calculadoras médicas, resumos técnicos, geradores de laudo e checklists — tudo organizado por especialidade radiológica.
                 </p>
-                <div className="flex items-center justify-center gap-4">
+                <div className="flex items-center justify-center gap-3">
                   <button
                     onClick={() => setCurrentSection('resumos')}
-                    className="px-6 py-3 bg-accent text-white rounded-lg hover:bg-accent2 transition-all font-semibold"
+                    className="px-5 py-2 bg-accent text-white rounded-lg hover:bg-accent2 transition-all font-semibold text-sm"
                   >
                     📚 Explorar Resumos
                   </button>
                   <button
                     onClick={() => setCurrentSection('calculadoras')}
-                    className="px-6 py-3 bg-surface2 text-text border border-border rounded-lg hover:border-accent/50 transition-all font-semibold"
+                    className="px-5 py-2 bg-surface2 text-text border border-border rounded-lg hover:border-accent/50 transition-all font-semibold text-sm"
                   >
                     🧮 Ver Calculadoras
                   </button>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-16">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 mb-12">
                 <div 
                   onClick={() => setCurrentSection('resumos')}
-                  className="bg-surface border border-border rounded-xl p-8 hover:border-accent/50 hover:shadow-lg transition-all cursor-pointer group"
+                  className="bg-surface border border-border rounded-lg p-4 hover:border-accent/50 hover:shadow-md transition-all cursor-pointer group"
                 >
-                  <div className="text-5xl mb-4">📚</div>
-                  <h3 className="text-2xl font-bold mb-2 text-text group-hover:text-accent transition-colors">Resumos</h3>
-                  <p className="text-text3 mb-4">Resumos técnicos organizados por especialidade e sub-área para consulta rápida</p>
-                  <div className="text-accent font-semibold text-sm">Explorar →</div>
+                  <div className="text-3xl mb-2">📚</div>
+                  <h3 className="text-sm font-bold mb-1 text-text group-hover:text-accent transition-colors">Resumos</h3>
+                  <p className="text-xs text-text3">Resumos técnicos por especialidade</p>
                 </div>
 
                 <div 
                   onClick={() => setCurrentSection('artigos')}
-                  className="bg-surface border border-border rounded-xl p-8 hover:border-accent/50 hover:shadow-lg transition-all cursor-pointer group"
+                  className="bg-surface border border-border rounded-lg p-4 hover:border-accent/50 hover:shadow-md transition-all cursor-pointer group"
                 >
-                  <div className="text-5xl mb-4">📄</div>
-                  <h3 className="text-2xl font-bold mb-2 text-text group-hover:text-accent transition-colors">Artigos</h3>
-                  <p className="text-text3 mb-4">Resumos de artigos científicos recentes com evidências e takeaways práticos</p>
-                  <div className="text-accent font-semibold text-sm">Explorar →</div>
+                  <div className="text-3xl mb-2">📄</div>
+                  <h3 className="text-sm font-bold mb-1 text-text group-hover:text-accent transition-colors">Artigos</h3>
+                  <p className="text-xs text-text3">Resumos de artigos científicos</p>
                 </div>
 
                 <div 
                   onClick={() => setCurrentSection('calculadoras')}
-                  className="bg-surface border border-border rounded-xl p-8 hover:border-accent/50 hover:shadow-lg transition-all cursor-pointer group"
+                  className="bg-surface border border-border rounded-lg p-4 hover:border-accent/50 hover:shadow-md transition-all cursor-pointer group"
                 >
-                  <div className="text-5xl mb-4">🧮</div>
-                  <h3 className="text-2xl font-bold mb-2 text-text group-hover:text-accent transition-colors">Calculadoras</h3>
-                  <p className="text-text3 mb-4">Calculadoras médicas (eGFR, NIHSS, BI-RADS) organizadas por especialidade</p>
-                  <div className="text-accent font-semibold text-sm">Explorar →</div>
+                  <div className="text-3xl mb-2">🧮</div>
+                  <h3 className="text-sm font-bold mb-1 text-text group-hover:text-accent transition-colors">Calculadoras</h3>
+                  <p className="text-xs text-text3">eGFR, NIHSS, BI-RADS</p>
                 </div>
 
                 <div 
                   onClick={() => setCurrentSection('geradores')}
-                  className="bg-surface border border-border rounded-xl p-8 hover:border-accent/50 hover:shadow-lg transition-all cursor-pointer group"
+                  className="bg-surface border border-border rounded-lg p-4 hover:border-accent/50 hover:shadow-md transition-all cursor-pointer group"
                 >
-                  <div className="text-5xl mb-4">⚙️</div>
-                  <h3 className="text-2xl font-bold mb-2 text-text group-hover:text-accent transition-colors">Geradores</h3>
-                  <p className="text-text3 mb-4">Geradores automáticos de laudos estruturados para RM, TC e outros exames</p>
-                  <div className="text-accent font-semibold text-sm">Explorar →</div>
+                  <div className="text-3xl mb-2">⚙️</div>
+                  <h3 className="text-sm font-bold mb-1 text-text group-hover:text-accent transition-colors">Geradores</h3>
+                  <p className="text-xs text-text3">Laudos automáticos</p>
                 </div>
 
                 <div 
                   onClick={() => setCurrentSection('mascaras')}
-                  className="bg-surface border border-border rounded-xl p-8 hover:border-accent/50 hover:shadow-lg transition-all cursor-pointer group"
+                  className="bg-surface border border-border rounded-lg p-4 hover:border-accent/50 hover:shadow-md transition-all cursor-pointer group"
                 >
-                  <div className="text-5xl mb-4">📝</div>
-                  <h3 className="text-2xl font-bold mb-2 text-text group-hover:text-accent transition-colors">Máscaras</h3>
-                  <p className="text-text3 mb-4">Templates de laudo prontos para copiar e personalizar rapidamente</p>
-                  <div className="text-accent font-semibold text-sm">Explorar →</div>
+                  <div className="text-3xl mb-2">📝</div>
+                  <h3 className="text-sm font-bold mb-1 text-text group-hover:text-accent transition-colors">Máscaras</h3>
+                  <p className="text-xs text-text3">Templates de laudo</p>
                 </div>
 
                 <div 
                   onClick={() => setCurrentSection('frases')}
-                  className="bg-surface border border-border rounded-xl p-8 hover:border-accent/50 hover:shadow-lg transition-all cursor-pointer group"
+                  className="bg-surface border border-border rounded-lg p-4 hover:border-accent/50 hover:shadow-md transition-all cursor-pointer group"
                 >
-                  <div className="text-5xl mb-4">💬</div>
-                  <h3 className="text-2xl font-bold mb-2 text-text group-hover:text-accent transition-colors">Frases</h3>
-                  <p className="text-text3 mb-4">Frases prontas para laudos organizadas por achados e patologias</p>
-                  <div className="text-accent font-semibold text-sm">Explorar →</div>
+                  <div className="text-3xl mb-2">💬</div>
+                  <h3 className="text-sm font-bold mb-1 text-text group-hover:text-accent transition-colors">Frases</h3>
+                  <p className="text-xs text-text3">Frases prontas</p>
                 </div>
 
                 <div 
                   onClick={() => setCurrentSection('checklists')}
-                  className="bg-surface border border-border rounded-xl p-8 hover:border-accent/50 hover:shadow-lg transition-all cursor-pointer group"
+                  className="bg-surface border border-border rounded-lg p-4 hover:border-accent/50 hover:shadow-md transition-all cursor-pointer group"
                 >
-                  <div className="text-5xl mb-4">✅</div>
-                  <h3 className="text-2xl font-bold mb-2 text-text group-hover:text-accent transition-colors">Checklists</h3>
-                  <p className="text-text3 mb-4">Checklists de avaliação sistemática para não esquecer nenhum detalhe</p>
-                  <div className="text-accent font-semibold text-sm">Explorar →</div>
+                  <div className="text-3xl mb-2">✅</div>
+                  <h3 className="text-sm font-bold mb-1 text-text group-hover:text-accent transition-colors">Checklists</h3>
+                  <p className="text-xs text-text3">Avaliação sistemática</p>
                 </div>
 
                 <div 
                   onClick={() => setCurrentSection('tutoriais')}
-                  className="bg-surface border border-border rounded-xl p-8 hover:border-accent/50 hover:shadow-lg transition-all cursor-pointer group"
+                  className="bg-surface border border-border rounded-lg p-4 hover:border-accent/50 hover:shadow-md transition-all cursor-pointer group"
                 >
-                  <div className="text-5xl mb-4">🎓</div>
-                  <h3 className="text-2xl font-bold mb-2 text-text group-hover:text-accent transition-colors">Tutoriais</h3>
-                  <p className="text-text3 mb-4">Guias passo a passo para técnicas, protocolos e procedimentos</p>
-                  <div className="text-accent font-semibold text-sm">Explorar →</div>
+                  <div className="text-3xl mb-2">🎓</div>
+                  <h3 className="text-sm font-bold mb-1 text-text group-hover:text-accent transition-colors">Tutoriais</h3>
+                  <p className="text-xs text-text3">Guias passo a passo</p>
                 </div>
 
                 <div 
                   onClick={() => setCurrentSection('videos')}
-                  className="bg-surface border border-border rounded-xl p-8 hover:border-accent/50 hover:shadow-lg transition-all cursor-pointer group"
+                  className="bg-surface border border-border rounded-lg p-4 hover:border-accent/50 hover:shadow-md transition-all cursor-pointer group"
                 >
-                  <div className="text-5xl mb-4">🎬</div>
-                  <h3 className="text-2xl font-bold mb-2 text-text group-hover:text-accent transition-colors">Vídeos</h3>
-                  <p className="text-text3 mb-4">Coleção de vídeos educacionais sobre achados e casos práticos</p>
-                  <div className="text-accent font-semibold text-sm">Explorar →</div>
+                  <div className="text-3xl mb-2">🎬</div>
+                  <h3 className="text-sm font-bold mb-1 text-text group-hover:text-accent transition-colors">Vídeos</h3>
+                  <p className="text-xs text-text3">Casos práticos</p>
                 </div>
               </div>
 
-              <div className="bg-gradient-to-r from-accent/10 to-accent2/10 border border-accent/30 rounded-xl p-12 text-center">
-                <h2 className="text-3xl font-bold mb-4 text-text">
-                  🔥 v9.1 - Firebase Integration Completa
-                </h2>
-                <p className="text-text2 text-lg mb-6">
-                  Plataforma Next.js + Firebase para radiologistas, com 10 especialidades e 87 sub-áreas
-                </p>
-                <div className="flex items-center justify-center gap-8 text-text3">
-                  <div>
-                    <div className="text-3xl font-bold text-accent">10</div>
-                    <div className="text-sm">Especialidades</div>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-12">
+                <div className="bg-surface border border-border rounded-xl p-6">
+                  <h2 className="text-xl font-bold mb-4 flex items-center gap-2 text-text">
+                    🔥 Últimas Atualizações
+                  </h2>
+                  <div className="space-y-3">
+                    <div className="flex items-start gap-3 pb-3 border-b border-border">
+                      <div className="text-2xl">📚</div>
+                      <div className="flex-1">
+                        <div className="text-sm font-semibold text-text">Resumo AVC Isquêmico</div>
+                        <div className="text-xs text-text3">Neurorradiologia • 18/02/2025</div>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3 pb-3 border-b border-border">
+                      <div className="text-2xl">🧮</div>
+                      <div className="flex-1">
+                        <div className="text-sm font-semibold text-text">Calculadora eGFR</div>
+                        <div className="text-xs text-text3">Em desenvolvimento • 17/02/2025</div>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3 pb-3 border-b border-border">
+                      <div className="text-2xl">⚙️</div>
+                      <div className="flex-1">
+                        <div className="text-sm font-semibold text-text">Gerador RM Próstata</div>
+                        <div className="text-xs text-text3">Em desenvolvimento • 16/02/2025</div>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <div className="text-2xl">🔥</div>
+                      <div className="flex-1">
+                        <div className="text-sm font-semibold text-text">Migração para Next.js</div>
+                        <div className="text-xs text-text3">v9.1 completa • 15/02/2025</div>
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <div className="text-3xl font-bold text-accent">87</div>
-                    <div className="text-sm">Sub-áreas</div>
+                </div>
+
+                <div className="bg-gradient-to-br from-accent/10 to-accent2/10 border border-accent/30 rounded-xl p-6">
+                  <h2 className="text-xl font-bold mb-4 text-text">
+                    📊 Estatísticas
+                  </h2>
+                  <div className="grid grid-cols-3 gap-4 mb-6">
+                    <div className="text-center">
+                      <div className="text-3xl font-bold text-accent">10</div>
+                      <div className="text-xs text-text3">Especialidades</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-3xl font-bold text-accent">87</div>
+                      <div className="text-xs text-text3">Sub-áreas</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-3xl font-bold text-accent">9</div>
+                      <div className="text-xs text-text3">Ferramentas</div>
+                    </div>
                   </div>
-                  <div>
-                    <div className="text-3xl font-bold text-accent">9</div>
-                    <div className="text-sm">Ferramentas</div>
+                  <div className="bg-surface/50 rounded-lg p-4 border border-accent/20">
+                    <div className="text-sm font-semibold text-text mb-2">🚀 v9.1 - Firebase Integration</div>
+                    <div className="text-xs text-text3 leading-relaxed">
+                      Plataforma Next.js com Firebase, autenticação segura, API routes otimizadas e deploy automático na Vercel
+                    </div>
                   </div>
                 </div>
               </div>
