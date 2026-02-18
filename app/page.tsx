@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import ContentList from '../components/ContentList'
 
 const SPECS = {
@@ -110,14 +110,10 @@ export default function Home() {
   const [currentSubArea, setCurrentSubArea] = useState('all')
   const [currentSection, setCurrentSection] = useState('home')
   const [theme, setTheme] = useState<'dark' | 'light'>('dark')
-  const [dropdownOpen, setDropdownOpen] = useState(false)
-  const dropdownRef = useRef<HTMLDivElement>(null)
-  const buttonRef = useRef<HTMLButtonElement>(null)
 
   const handleSpecChange = (spec: string) => {
     setCurrentSpec(spec)
     setCurrentSubArea('all')
-    setDropdownOpen(false)
   }
 
   const toggleTheme = () => {
@@ -137,25 +133,9 @@ export default function Home() {
     }
   }, [])
 
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        dropdownOpen &&
-        dropdownRef.current &&
-        buttonRef.current &&
-        !dropdownRef.current.contains(event.target as Node) &&
-        !buttonRef.current.contains(event.target as Node)
-      ) {
-        setDropdownOpen(false)
-      }
-    }
-
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [dropdownOpen])
-
   const usesFirebase = ['resumos', 'artigos', 'mascaras', 'frases', 'checklists', 'tutoriais', 'videos'].includes(currentSection)
   const usesSpecs = usesFirebase || currentSection === 'calculadoras' || currentSection === 'geradores'
+  const showSubareas = usesFirebase && SPECS[currentSpec as keyof typeof SPECS].subs.length > 0
 
   return (
     <div className="min-h-screen">
@@ -166,7 +146,7 @@ export default function Home() {
               onClick={() => setCurrentSection('home')}
               className="text-2xl font-bold text-accent2 hover:text-accent transition-colors"
             >
-              RadioHub <span className="text-sm text-text3 font-normal">v9.1</span>
+              RadioHub <span className="text-sm text-text3 font-normal">v10.0</span>
             </button>
             
             <nav className="flex gap-1.5">
@@ -218,74 +198,59 @@ export default function Home() {
             {Object.entries(SPECS).map(([key, spec]) => (
               <button
                 key={key}
-                ref={currentSpec === key ? buttonRef : null}
                 onClick={() => handleSpecChange(key)}
-                className={`px-3 py-2 rounded text-xs font-semibold whitespace-nowrap transition-all relative ${
+                className={`px-3 py-2 rounded text-xs font-semibold whitespace-nowrap transition-all ${
                   currentSpec === key
                     ? 'bg-accent text-white shadow-md'
                     : 'bg-surface2 text-text2 hover:bg-border2 hover:text-text'
                 }`}
               >
                 {spec.icon} {spec.label}
-                
-                {currentSpec === key && usesFirebase && spec.subs.length > 0 && (
-                  <>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        setDropdownOpen(!dropdownOpen)
-                      }}
-                      className="ml-2 inline-flex items-center"
-                    >
-                      <span className={`transition-transform ${dropdownOpen ? 'rotate-180' : ''}`}>▼</span>
-                    </button>
-                    
-                    {dropdownOpen && (
-                      <>
-                        <div className="fixed inset-0 z-10" onClick={() => setDropdownOpen(false)} />
-                        <div
-                          ref={dropdownRef}
-                          className="absolute top-full left-0 mt-2 w-64 bg-surface border border-border rounded-lg shadow-xl max-h-96 overflow-y-auto z-20"
-                        >
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              setCurrentSubArea('all')
-                              setDropdownOpen(false)
-                            }}
-                            className={`w-full text-left px-4 py-2 text-sm hover:bg-accent/10 transition-colors ${
-                              currentSubArea === 'all' ? 'bg-accent/20 text-accent font-semibold' : 'text-text'
-                            }`}
-                          >
-                            ⊕ Todas as sub-áreas
-                          </button>
-                          {spec.subs.map(sub => (
-                            <button
-                              key={sub}
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                setCurrentSubArea(sub)
-                                setDropdownOpen(false)
-                              }}
-                              className={`w-full text-left px-4 py-2 text-sm hover:bg-accent/10 transition-colors ${
-                                currentSubArea === sub ? 'bg-accent/20 text-accent font-semibold' : 'text-text'
-                              }`}
-                            >
-                              {sub}
-                            </button>
-                          ))}
-                        </div>
-                      </>
-                    )}
-                  </>
-                )}
               </button>
             ))}
           </div>
         </div>
       )}
 
-      <main className={`${currentSection === 'home' ? 'pt-16' : usesSpecs ? 'pt-[110px]' : 'pt-16'} min-h-screen`}>
+      {showSubareas && (
+        <div className="fixed top-[72px] left-0 right-0 bg-surface2 border-b border-border z-30">
+          <div className="container mx-auto px-8 py-2 flex flex-wrap items-center gap-1.5">
+            <button
+              onClick={() => setCurrentSubArea('all')}
+              className={`px-3 py-1.5 rounded text-xs font-medium whitespace-nowrap transition-all ${
+                currentSubArea === 'all'
+                  ? 'bg-accent text-white'
+                  : 'bg-surface text-text2 hover:bg-border hover:text-text'
+              }`}
+            >
+              ⊕ Todas as sub-áreas
+            </button>
+            {SPECS[currentSpec as keyof typeof SPECS].subs.map(sub => (
+              <button
+                key={sub}
+                onClick={() => setCurrentSubArea(sub)}
+                className={`px-3 py-1.5 rounded text-xs font-medium whitespace-nowrap transition-all ${
+                  currentSubArea === sub
+                    ? 'bg-accent text-white'
+                    : 'bg-surface text-text2 hover:bg-border hover:text-text'
+                }`}
+              >
+                {sub}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <main className={`${
+        currentSection === 'home' 
+          ? 'pt-16' 
+          : showSubareas
+          ? 'pt-[120px]'
+          : usesSpecs
+          ? 'pt-[72px]'
+          : 'pt-16'
+      } min-h-screen`}>
         <div className="container mx-auto px-8 py-12">
           
           {currentSection === 'home' && (
@@ -351,24 +316,24 @@ export default function Home() {
                       </div>
                     </div>
                     <div className="flex items-start gap-3 pb-3 border-b border-border">
+                      <div className="text-2xl">🎯</div>
+                      <div className="flex-1">
+                        <div className="text-sm font-semibold text-text">Sub-áreas em Linha</div>
+                        <div className="text-xs text-text3">Layout melhorado • Hoje</div>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3 pb-3 border-b border-border">
                       <div className="text-2xl">🖼️</div>
                       <div className="flex-1">
                         <div className="text-sm font-semibold text-text">Suporte a Imagens</div>
                         <div className="text-xs text-text3">Imagens com legendas • Hoje</div>
                       </div>
                     </div>
-                    <div className="flex items-start gap-3 pb-3 border-b border-border">
-                      <div className="text-2xl">🔐</div>
-                      <div className="flex-1">
-                        <div className="text-sm font-semibold text-text">Admin Panel</div>
-                        <div className="text-xs text-text3">CRUD completo • Hoje</div>
-                      </div>
-                    </div>
                     <div className="flex items-start gap-3">
                       <div className="text-2xl">🔥</div>
                       <div className="flex-1">
-                        <div className="text-sm font-semibold text-text">v9.1 - Dropdown Fixo</div>
-                        <div className="text-xs text-text3">Sub-áreas com dropdown • Hoje</div>
+                        <div className="text-sm font-semibold text-text">v10.0 - UX Aprimorado</div>
+                        <div className="text-xs text-text3">Interface limpa • Hoje</div>
                       </div>
                     </div>
                   </div>
@@ -393,9 +358,9 @@ export default function Home() {
                     </div>
                   </div>
                   <div className="bg-surface/50 rounded-lg p-4 border border-accent/20">
-                    <div className="text-sm font-semibold text-text mb-2">🚀 v9.1 - Dropdown Funcional</div>
+                    <div className="text-sm font-semibold text-text mb-2">🚀 v10.0 - Layout Limpo</div>
                     <div className="text-xs text-text3 leading-relaxed">
-                      Dropdown de sub-áreas abaixo do botão da especialidade, interface limpa e organizada com suporte a imagens!
+                      Sub-áreas aparecem em linha separada abaixo das especialidades. Interface organizada e profissional!
                     </div>
                   </div>
                 </div>
@@ -512,3 +477,20 @@ export default function Home() {
     </div>
   )
 }
+```
+
+**Commit:** `v10.0 - Subareas below specialty bar`
+
+---
+
+## ✅ O QUE MUDOU:
+
+**LAYOUT AGORA:**
+```
+┌─────────────────────────────────────────┐
+│ Header (Home, Resumos, etc.)            │
+├─────────────────────────────────────────┤
+│ 🧠 Neuro | 🦷 C&P | 🩺 GI | 🔵 GU...   │ ← Especialidades
+├─────────────────────────────────────────┤
+│ ⊕ Todas | AVC | Neoplasias | Trauma... │ ← SUB-ÁREAS (NOVA LINHA!)
+└─────────────────────────────────────────┘
