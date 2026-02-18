@@ -7,7 +7,10 @@ export async function GET(
   { params }: { params: { tipo: string; especialidade: string; subarea: string } }
 ) {
   try {
-    const { tipo, especialidade, subarea } = params
+    const { tipo, especialidade } = params
+    
+    // DECODIFICA a subarea (resolve problema da barra /)
+    const subarea = decodeURIComponent(params.subarea)
     
     // Valida tipo
     if (!VALID_TYPES.includes(tipo)) {
