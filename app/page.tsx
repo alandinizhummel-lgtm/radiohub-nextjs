@@ -110,10 +110,12 @@ export default function Home() {
   const [currentSubArea, setCurrentSubArea] = useState('all')
   const [currentSection, setCurrentSection] = useState('home')
   const [theme, setTheme] = useState<'dark' | 'light'>('dark')
+  const [dropdownOpen, setDropdownOpen] = useState(false)
 
   const handleSpecChange = (spec: string) => {
     setCurrentSpec(spec)
     setCurrentSubArea('all')
+    setDropdownOpen(false)
   }
 
   const toggleTheme = () => {
@@ -212,18 +214,53 @@ export default function Home() {
       )}
 
       {currentSection !== 'home' && usesFirebase && SPECS[currentSpec as keyof typeof SPECS].subs.length > 0 && (
-        <div className="fixed bg-surface border-b border-accent/30 z-50 py-2" style={{top: '95px', left: 0, right: 0}}>
-          <div className="container mx-auto px-8">
-            <select 
-              value={currentSubArea}
-              onChange={(e) => setCurrentSubArea(e.target.value)}
-              className="px-4 py-2 rounded-lg bg-surface2 text-text border border-border hover:border-accent/50 focus:border-accent focus:outline-none transition-all cursor-pointer text-sm"
-            >
-              <option value="all">⊕ Todas as sub-áreas</option>
-              {SPECS[currentSpec as keyof typeof SPECS].subs.map(sub => (
-                <option key={sub} value={sub}>{sub}</option>
-              ))}
-            </select>
+        <div className="fixed z-50" style={{top: '95px', left: 0, right: 0}}>
+          <div className="container mx-auto px-8 py-2">
+            <div className="relative inline-block">
+              <button
+                onClick={() => setDropdownOpen(!dropdownOpen)}
+                className="px-4 py-2 bg-surface2 text-text border border-border rounded-lg hover:border-accent/50 transition-all flex items-center gap-2 text-sm font-medium"
+              >
+                <span>{currentSubArea === 'all' ? '⊕ Todas as sub-áreas' : currentSubArea}</span>
+                <span className={`transition-transform ${dropdownOpen ? 'rotate-180' : ''}`}>▼</span>
+              </button>
+              
+              {dropdownOpen && (
+                <>
+                  <div 
+                    className="fixed inset-0 z-10" 
+                    onClick={() => setDropdownOpen(false)}
+                  />
+                  <div className="absolute top-full left-0 mt-2 w-64 bg-surface border border-border rounded-lg shadow-xl max-h-96 overflow-y-auto z-20">
+                    <button
+                      onClick={() => {
+                        setCurrentSubArea('all')
+                        setDropdownOpen(false)
+                      }}
+                      className={`w-full text-left px-4 py-2 text-sm hover:bg-accent/10 transition-colors ${
+                        currentSubArea === 'all' ? 'bg-accent/20 text-accent font-semibold' : 'text-text'
+                      }`}
+                    >
+                      ⊕ Todas as sub-áreas
+                    </button>
+                    {SPECS[currentSpec as keyof typeof SPECS].subs.map(sub => (
+                      <button
+                        key={sub}
+                        onClick={() => {
+                          setCurrentSubArea(sub)
+                          setDropdownOpen(false)
+                        }}
+                        className={`w-full text-left px-4 py-2 text-sm hover:bg-accent/10 transition-colors ${
+                          currentSubArea === sub ? 'bg-accent/20 text-accent font-semibold' : 'text-text'
+                        }`}
+                      >
+                        {sub}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -232,7 +269,7 @@ export default function Home() {
         currentSection === 'home' 
           ? 'pt-16' 
           : usesFirebase
-          ? 'pt-[140px]'
+          ? 'pt-[105px]'
           : usesSpecs
           ? 'pt-[95px]'
           : 'pt-16'
