@@ -14,6 +14,16 @@ const SPECS = {
     icon: '🦷',
     subs: ['Tireoide/Paratireoide', 'Laringe/Faringe', 'Cavidade Oral/Mandíbula', 'Órbita/Globo Ocular', 'Ouvido/Mastoide', 'Glândulas Salivares', 'Espaços Cervicais', 'Linfonodos Cervicais']
   },
+  torax: {
+    label: 'Tórax',
+    icon: '🫁',
+    subs: ['Parênquima Pulmonar', 'Nódulo/Massa Pulmonar', 'Infecção/Pneumonia', 'Interstício/Fibrose', 'DPOC/Enfisema', 'Derrame Pleural/Empiema', 'Mediastino', 'Pleura', 'Trauma Torácico', 'Pediatria Tórax']
+  },
+  cardio: {
+    label: 'Cardiovascular',
+    icon: '❤️',
+    subs: ['Aorta Torácica', 'Aorta Abdominal', 'Cardíaco/Coração', 'Coronárias', 'Artérias Periféricas', 'Veias/TEP', 'Dissecção Aórtica', 'Aneurismas', 'Malformações Vasculares']
+  },
   gi: {
     label: 'Abdome · Digestivo',
     icon: '🩺',
@@ -34,20 +44,15 @@ const SPECS = {
     icon: '🎀',
     subs: ['Mamografia', 'US Mama', 'RM Mama', 'BI-RADS', 'Mama Masculina', 'Intervenção/Biópsia Mama']
   },
-  vasc: {
-    label: 'Vascular e Interv.',
-    icon: '💉',
-    subs: ['Aorta Torácica', 'Aorta Abdominal', 'Artérias Periféricas', 'Veias/TEP', 'Tórax/Pulmão Vascular', 'Intervenção Arterial', 'Intervenção Venosa', 'Intervenção Não Vascular']
-  },
-  torax: {
-    label: 'Tórax',
-    icon: '🫁',
-    subs: ['Parênquima Pulmonar', 'Nódulo/Massa Pulmonar', 'Infecção/Pneumonia', 'Interstício/Fibrose', 'DPOC/Enfisema', 'Derrame Pleural/Empiema', 'Mediastino', 'Pleura', 'Trauma Torácico', 'Pediatria Tórax']
-  },
   us: {
     label: 'Ultrassonografia',
     icon: '🔊',
     subs: ['Abdome Geral', 'Cervical/Tireoide', 'Ginecologia', 'Obstetrícia', 'Doppler', 'Músculo-esquelético US', 'Rins/Vias/Próstata', 'Testículo/Pênis', 'Tórax US', 'Globo Ocular', 'Transfontanelar', 'Procedimentos US', 'Pediatria US']
+  },
+  interv: {
+    label: 'Intervenção',
+    icon: '💉',
+    subs: ['Embolização', 'Drenagem/Biópsia', 'Intervenção Vascular Arterial', 'Intervenção Vascular Venosa', 'Neuro Intervenção', 'Procedimentos Oncológicos', 'Acesso Vascular']
   },
   contraste: {
     label: 'Contraste',
@@ -60,6 +65,10 @@ const CALCULADORAS_POR_SPEC: Record<string, Array<{nome: string, descricao: stri
   neuro: [
     { nome: 'Escala NIHSS', descricao: 'Gravidade do AVC isquêmico' },
     { nome: 'ASPECTS Score', descricao: 'Extensão de isquemia no território da ACM' }
+  ],
+  cardio: [
+    { nome: 'Escore de Cálcio', descricao: 'Quantificação de cálcio coronariano' },
+    { nome: 'Fração de Ejeção', descricao: 'Cálculo de FE pelo método Simpson' }
   ],
   gi: [
     { nome: 'Child-Pugh', descricao: 'Classificação de cirrose hepática' },
@@ -89,6 +98,10 @@ const GERADORES_POR_SPEC: Record<string, Array<{nome: string, descricao: string}
     { nome: 'RM Pescoço', descricao: 'Gerador de laudo de RM cervical' },
     { nome: 'TC Seios da Face', descricao: 'Gerador de laudo de TC de seios paranasais' }
   ],
+  cardio: [
+    { nome: 'AngioTC Coronárias', descricao: 'Gerador de laudo de coronário TC' },
+    { nome: 'AngioTC Aorta', descricao: 'Gerador de laudo de aorta' }
+  ],
   gi: [
     { nome: 'RM Abdome', descricao: 'Gerador de laudo de RM abdominal' },
     { nome: 'TC Abdome', descricao: 'Gerador de laudo de TC abdominal' }
@@ -100,8 +113,8 @@ const GERADORES_POR_SPEC: Record<string, Array<{nome: string, descricao: string}
     { nome: 'TC Tórax', descricao: 'Gerador de laudo de TC de tórax' },
     { nome: 'RX Tórax', descricao: 'Gerador de laudo de radiografia' }
   ],
-  vasc: [
-    { nome: 'AngioTC', descricao: 'Gerador de laudo de angiotomografia' }
+  interv: [
+    { nome: 'Relatório de Embolização', descricao: 'Gerador de laudo de procedimento' }
   ]
 }
 
@@ -114,19 +127,19 @@ export default function Home() {
   const dropdownRef = useRef<HTMLDivElement>(null)
   const buttonRef = useRef<HTMLButtonElement>(null)
 
-const handleSpecChange = (spec: string) => {
-  if (currentSpec === spec && usesFirebase) {
-    setDropdownOpen(!dropdownOpen)
-  } else {
-    setCurrentSpec(spec)
-    setCurrentSubArea('all')
-    if (usesFirebase) {
-      setDropdownOpen(true)
+  const handleSpecChange = (spec: string) => {
+    if (currentSpec === spec && usesFirebase) {
+      setDropdownOpen(!dropdownOpen)
     } else {
-      setDropdownOpen(false)
+      setCurrentSpec(spec)
+      setCurrentSubArea('all')
+      if (usesFirebase) {
+        setDropdownOpen(true)
+      } else {
+        setDropdownOpen(false)
+      }
     }
   }
-}
 
   const toggleTheme = () => {
     const newTheme = theme === 'dark' ? 'light' : 'dark'
@@ -344,24 +357,24 @@ const handleSpecChange = (spec: string) => {
                       </div>
                     </div>
                     <div className="flex items-start gap-3 pb-3 border-b border-border">
-                      <div className="text-2xl">📋</div>
+                      <div className="text-2xl">❤️</div>
                       <div className="flex-1">
-                        <div className="text-sm font-semibold text-text">Dropdown Vertical</div>
-                        <div className="text-xs text-text3">Sub-áreas abaixo do botão • Hoje</div>
+                        <div className="text-sm font-semibold text-text">Nova: Cardiovascular</div>
+                        <div className="text-xs text-text3">Especialidade separada • Hoje</div>
                       </div>
                     </div>
                     <div className="flex items-start gap-3 pb-3 border-b border-border">
-                      <div className="text-2xl">🖼️</div>
+                      <div className="text-2xl">💉</div>
                       <div className="flex-1">
-                        <div className="text-sm font-semibold text-text">Suporte a Imagens</div>
-                        <div className="text-xs text-text3">Imagens com legendas • Hoje</div>
+                        <div className="text-sm font-semibold text-text">Nova: Intervenção</div>
+                        <div className="text-xs text-text3">Especialidade separada • Hoje</div>
                       </div>
                     </div>
                     <div className="flex items-start gap-3">
                       <div className="text-2xl">🔥</div>
                       <div className="flex-1">
-                        <div className="text-sm font-semibold text-text">v10.0 Final</div>
-                        <div className="text-xs text-text3">Interface perfeita • Hoje</div>
+                        <div className="text-sm font-semibold text-text">v10.0 - Cards Pequenos</div>
+                        <div className="text-xs text-text3">Grid com títulos • Hoje</div>
                       </div>
                     </div>
                   </div>
@@ -373,11 +386,11 @@ const handleSpecChange = (spec: string) => {
                   </h2>
                   <div className="grid grid-cols-3 gap-4 mb-6">
                     <div className="text-center">
-                      <div className="text-3xl font-bold text-accent">10</div>
+                      <div className="text-3xl font-bold text-accent">11</div>
                       <div className="text-xs text-text3">Especialidades</div>
                     </div>
                     <div className="text-center">
-                      <div className="text-3xl font-bold text-accent">87</div>
+                      <div className="text-3xl font-bold text-accent">90+</div>
                       <div className="text-xs text-text3">Sub-áreas</div>
                     </div>
                     <div className="text-center">
@@ -386,9 +399,9 @@ const handleSpecChange = (spec: string) => {
                     </div>
                   </div>
                   <div className="bg-surface/50 rounded-lg p-4 border border-accent/20">
-                    <div className="text-sm font-semibold text-text mb-2">🚀 v10.0 - Dropdown Vertical</div>
+                    <div className="text-sm font-semibold text-text mb-2">🚀 v10.0 Completo</div>
                     <div className="text-xs text-text3 leading-relaxed">
-                      Clica na especialidade para abrir dropdown com sub-áreas uma embaixo da outra!
+                      11 especialidades organizadas, cards pequenos em grid, dropdown vertical, imagens com legendas!
                     </div>
                   </div>
                 </div>
