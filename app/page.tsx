@@ -7,12 +7,13 @@ import SpecBar from '../components/SpecBar'
 import { SPECS, VALID_CONTENT_TYPES, TYPE_LABELS, type ContentType } from '@/lib/specs'
 import { getFavorites, getHistory, type SavedItem } from '@/lib/user-data'
 
-const CALCULADORAS_POR_SPEC: Record<string, Array<{nome: string, descricao: string}>> = {
+const CALCULADORAS_POR_SPEC: Record<string, Array<{nome: string, descricao: string, link?: string}>> = {
   neuro: [
     { nome: 'Escala NIHSS', descricao: 'Gravidade do AVC isquêmico' },
     { nome: 'ASPECTS Score', descricao: 'Extensão de isquemia no território da ACM' }
   ],
   cardio: [
+    { nome: 'RM Cardíaca', descricao: 'Volumes, FE, massa, ECV, laudo assistido', link: '/calculadora/rm-cardiaca' },
     { nome: 'Escore de Cálcio', descricao: 'Quantificação de cálcio coronariano' },
     { nome: 'Fração de Ejeção', descricao: 'Cálculo de FE pelo método Simpson' }
   ],
@@ -437,7 +438,12 @@ export default function Home() {
               {CALCULADORAS_POR_SPEC[currentSpec]?.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {CALCULADORAS_POR_SPEC[currentSpec].map((calc, index) => (
-                    <div key={index} className="bg-surface border border-border rounded-xl p-4 sm:p-6 hover:border-accent/50 hover:shadow-lg transition-all group">
+                    <div
+                      key={index}
+                      className={`bg-surface border border-border rounded-xl p-4 sm:p-6 hover:border-accent/50 hover:shadow-lg transition-all group ${calc.link ? 'cursor-pointer' : ''}`}
+                      onClick={() => calc.link && window.open(calc.link, '_self')}
+                      role={calc.link ? 'link' : undefined}
+                    >
                       <div className="flex items-start gap-3 mb-4">
                         <div className="text-2xl sm:text-3xl" aria-hidden="true">🧮</div>
                         <div>
@@ -445,9 +451,15 @@ export default function Home() {
                           <p className="text-xs sm:text-sm text-text3">{calc.descricao}</p>
                         </div>
                       </div>
-                      <div className="px-4 py-2 bg-surface2 text-text3 rounded-lg text-sm text-center">
-                        Em desenvolvimento
-                      </div>
+                      {calc.link ? (
+                        <div className="px-4 py-2 bg-accent/10 text-accent rounded-lg text-sm text-center font-semibold">
+                          Abrir Calculadora
+                        </div>
+                      ) : (
+                        <div className="px-4 py-2 bg-surface2 text-text3 rounded-lg text-sm text-center">
+                          Em desenvolvimento
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>

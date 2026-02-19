@@ -89,6 +89,18 @@ export default function AdminDashboard() {
           ))}
         </div>
 
+        <h2 className="text-2xl font-bold text-text mb-6 mt-12">🫀 Ferramentas</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <button
+            onClick={() => router.push('/admin/cardiac')}
+            className="group bg-surface rounded-2xl p-8 border border-border hover:border-accent/50 transition-all hover:shadow-lg text-left"
+          >
+            <div className="text-5xl mb-4">🫀</div>
+            <h3 className="text-xl font-bold text-text mb-2 group-hover:text-accent transition-colors">Calculadora Cardiaca</h3>
+            <p className="text-sm text-text3">Mascaras de laudo e tabelas de referencia</p>
+          </button>
+        </div>
+
         <div className="mt-12 bg-gradient-to-r from-accent/20 to-accent2/20 border border-accent/30 rounded-2xl p-8">
           <h3 className="text-2xl font-bold text-text mb-2">🚀 Radiologyhub</h3>
           <p className="text-text2 mb-4">
