@@ -13,7 +13,7 @@
   --accent2: #7aaff9;
   --text: #e2e5f0;
   --text2: #8d94b0;
-  --text3: #4a5070;
+  --text3: #7580a0;
   --green: #3fc983;
   --orange: #f0944d;
   --red: #e05c5c;
@@ -31,7 +31,7 @@
   --accent2: #3b7dd6;
   --text: #24292f;
   --text2: #57606a;
-  --text3: #8b949e;
+  --text3: #6b7280;
   --green: #28a745;
   --orange: #fd7e14;
   --red: #dc3545;
@@ -40,11 +40,100 @@
 body {
   background: var(--bg);
   color: var(--text);
-  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   transition: background-color 0.3s ease, color 0.3s ease;
 }
 
-/* Smooth transitions for theme changes */
-* {
-  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+/* Toast animation */
+@keyframes slide-in {
+  from { opacity: 0; transform: translateX(100px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+.animate-slide-in {
+  animation: slide-in 0.2s ease-out;
+}
+
+/* Hide scrollbar for spec bar horizontal scroll */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Thin modern scrollbar */
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border2) transparent;
+}
+.scrollbar-thin::-webkit-scrollbar {
+  width: 4px;
+}
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: var(--border2);
+  border-radius: 4px;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: var(--text3);
+}
+
+/* Markdown content styling */
+.markdown-content figure {
+  margin: 1rem 0;
+}
+
+.markdown-content figure img {
+  margin: 0;
+}
+
+.markdown-content blockquote p {
+  margin-bottom: 0;
+}
+
+.markdown-content table {
+  font-size: 0.8125rem;
+}
+
+.markdown-content input[type="checkbox"] {
+  pointer-events: none;
+}
+
+.markdown-content ul.contains-task-list {
+  list-style: none;
+  padding-left: 0;
+}
+
+/* Máscara content styling */
+.mascara-content h2 {
+  font-size: 1rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 1rem;
+}
+
+.mascara-content h3 {
+  font-size: 0.875rem;
+  font-weight: 700;
+  margin-top: 1.25rem;
+  margin-bottom: 0.5rem;
+}
+
+.mascara-content p {
+  margin-bottom: 0.5rem;
+}
+
+.mascara-content ul {
+  list-style: disc;
+  padding-left: 1.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.mascara-content hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 1rem 0;
 }

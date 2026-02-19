@@ -1,65 +1,11 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import ContentList from '../components/ContentList'
-
-const SPECS = {
-  neuro: {
-    label: 'Neurorradiologia',
-    icon: '🧠',
-    subs: ['Encéfalo', 'AVC/Isquemia', 'Neoplasias Intracranianas', 'Infecção/Inflamação', 'Trauma Craniano', 'Malformações Vasculares', 'Coluna Cervical', 'Coluna Torácica', 'Coluna Lombossacra', 'Vascular Cerebral', 'Nervos Cranianos', 'Pediatria Neuro']
-  },
-  cn: {
-    label: 'Cabeça e Pescoço',
-    icon: '🦷',
-    subs: ['Tireoide/Paratireoide', 'Laringe/Faringe', 'Cavidade Oral/Mandíbula', 'Órbita/Globo Ocular', 'Ouvido/Mastoide', 'Glândulas Salivares', 'Espaços Cervicais', 'Linfonodos Cervicais']
-  },
-  torax: {
-    label: 'Tórax',
-    icon: '🫁',
-    subs: ['Parênquima Pulmonar', 'Nódulo/Massa Pulmonar', 'Infecção/Pneumonia', 'Interstício/Fibrose', 'DPOC/Enfisema', 'Derrame Pleural/Empiema', 'Mediastino', 'Pleura', 'Trauma Torácico', 'Pediatria Tórax']
-  },
-  cardio: {
-    label: 'Cardiovascular',
-    icon: '❤️',
-    subs: ['Aorta Torácica', 'Aorta Abdominal', 'Cardíaco/Coração', 'Coronárias', 'Artérias Periféricas', 'Veias/TEP', 'Dissecção Aórtica', 'Aneurismas', 'Malformações Vasculares']
-  },
-  gi: {
-    label: 'Abdome · Digestivo',
-    icon: '🩺',
-    subs: ['Fígado', 'Vias Biliares/Vesícula', 'Pâncreas', 'Baço', 'Estômago/Esôfago', 'Intestino Delgado', 'Cólon/Reto', 'Peritônio/Mesentério', 'Abdome Agudo']
-  },
-  gu: {
-    label: 'Abdome · Geniturinário',
-    icon: '🔵',
-    subs: ['Rins', 'Adrenal', 'Bexiga', 'Ureter/Pelve Renal', 'Próstata', 'Testículo/Epidídimo', 'Pênis', 'Útero/Ovários', 'Retroperitônio']
-  },
-  msk: {
-    label: 'Músculo-Esquelética',
-    icon: '🦴',
-    subs: ['Ombro', 'Cotovelo', 'Punho/Mão', 'Quadril', 'Joelho', 'Tornozelo/Pé', 'Coluna MSK', 'Partes Moles/Músculo', 'Tumores Ósseos/Partes Moles']
-  },
-  mama: {
-    label: 'Mamária',
-    icon: '🎀',
-    subs: ['Mamografia', 'US Mama', 'RM Mama', 'BI-RADS', 'Mama Masculina', 'Intervenção/Biópsia Mama']
-  },
-  us: {
-    label: 'Ultrassonografia',
-    icon: '🔊',
-    subs: ['Abdome Geral', 'Cervical/Tireoide', 'Ginecologia', 'Obstetrícia', 'Doppler', 'Músculo-esquelético US', 'Rins/Vias/Próstata', 'Testículo/Pênis', 'Tórax US', 'Globo Ocular', 'Transfontanelar', 'Procedimentos US', 'Pediatria US']
-  },
-  interv: {
-    label: 'Intervenção',
-    icon: '💉',
-    subs: ['Embolização', 'Drenagem/Biópsia', 'Intervenção Vascular Arterial', 'Intervenção Vascular Venosa', 'Neuro Intervenção', 'Procedimentos Oncológicos', 'Acesso Vascular']
-  },
-  contraste: {
-    label: 'Contraste',
-    icon: '💊',
-    subs: ['Iodado', 'Gadolínio', 'Reações/Profilaxia']
-  }
-}
+import SearchBar from '../components/SearchBar'
+import SpecBar from '../components/SpecBar'
+import { SPECS, VALID_CONTENT_TYPES, TYPE_LABELS, type ContentType } from '@/lib/specs'
+import { getFavorites, getHistory, type SavedItem } from '@/lib/user-data'
 
 const CALCULADORAS_POR_SPEC: Record<string, Array<{nome: string, descricao: string}>> = {
   neuro: [
@@ -118,28 +64,42 @@ const GERADORES_POR_SPEC: Record<string, Array<{nome: string, descricao: string}
   ]
 }
 
+const NAV_SECTIONS = [
+  { id: 'home', label: 'Home', icon: '⌂' },
+  { id: 'resumos', label: 'Resumos', icon: '📚' },
+  { id: 'artigos', label: 'Artigos', icon: '📄' },
+  { id: 'calculadoras', label: 'Calculadoras', icon: '🧮' },
+  { id: 'geradores', label: 'Geradores', icon: '⚙️' },
+  { id: 'mascaras', label: 'Máscaras', icon: '📝' },
+  { id: 'frases', label: 'Frases', icon: '💬' },
+  { id: 'checklists', label: 'Checklists', icon: '✅' },
+  { id: 'tutoriais', label: 'Tutoriais', icon: '🎓' },
+  { id: 'videos', label: 'Vídeos', icon: '🎬' }
+]
+
+const HOME_SECTIONS = [
+  { id: 'resumos', icon: '📚', label: 'Resumos', desc: 'Resumos técnicos por especialidade' },
+  { id: 'artigos', icon: '📄', label: 'Artigos', desc: 'Resumos de artigos científicos' },
+  { id: 'calculadoras', icon: '🧮', label: 'Calculadoras', desc: 'eGFR, NIHSS, BI-RADS' },
+  { id: 'geradores', icon: '⚙️', label: 'Geradores', desc: 'Laudos automáticos' },
+  { id: 'mascaras', icon: '📝', label: 'Máscaras', desc: 'Templates de laudo' },
+  { id: 'frases', icon: '💬', label: 'Frases', desc: 'Frases prontas' },
+  { id: 'checklists', icon: '✅', label: 'Checklists', desc: 'Avaliação sistemática' },
+  { id: 'tutoriais', icon: '🎓', label: 'Tutoriais', desc: 'Guias passo a passo' },
+  { id: 'videos', icon: '🎬', label: 'Vídeos', desc: 'Casos práticos' }
+]
+
 export default function Home() {
   const [currentSpec, setCurrentSpec] = useState('neuro')
   const [currentSubArea, setCurrentSubArea] = useState('all')
   const [currentSection, setCurrentSection] = useState('home')
   const [theme, setTheme] = useState<'dark' | 'light'>('dark')
-  const [dropdownOpen, setDropdownOpen] = useState(false)
-  const dropdownRef = useRef<HTMLDivElement>(null)
-  const buttonRef = useRef<HTMLButtonElement>(null)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [favorites, setFavorites] = useState<SavedItem[]>([])
+  const [history, setHistory] = useState<SavedItem[]>([])
 
-  const handleSpecChange = (spec: string) => {
-    if (currentSpec === spec && usesFirebase) {
-      setDropdownOpen(!dropdownOpen)
-    } else {
-      setCurrentSpec(spec)
-      setCurrentSubArea('all')
-      if (usesFirebase) {
-        setDropdownOpen(true)
-      } else {
-        setDropdownOpen(false)
-      }
-    }
-  }
+  const usesFirebase = VALID_CONTENT_TYPES.includes(currentSection as ContentType)
+  const usesSpecs = usesFirebase || currentSection === 'calculadoras' || currentSection === 'geradores'
 
   const toggleTheme = () => {
     const newTheme = theme === 'dark' ? 'light' : 'dark'
@@ -150,371 +110,408 @@ export default function Home() {
     }
   }
 
+  const [searchItemId, setSearchItemId] = useState<string | null>(null)
+
+  const navigateTo = (section: string, spec?: string, subArea?: string) => {
+    setCurrentSection(section)
+    if (spec !== undefined) setCurrentSpec(spec)
+    if (subArea !== undefined) setCurrentSubArea(subArea)
+    setSearchItemId(null)
+    setMobileMenuOpen(false)
+  }
+
+  const handleSearchSelect = (r: { id?: string; tipo: string; especialidade: string }) => {
+    setCurrentSpec(r.especialidade)
+    setCurrentSection(r.tipo)
+    setCurrentSubArea('all')
+    setSearchItemId(r.id || null)
+    setMobileMenuOpen(false)
+  }
+
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const savedTheme = localStorage.getItem('theme') as 'dark' | 'light' || 'dark'
       setTheme(savedTheme)
       document.documentElement.classList.toggle('light-mode', savedTheme === 'light')
+      setFavorites(getFavorites())
+      setHistory(getHistory())
     }
   }, [])
 
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        dropdownOpen &&
-        dropdownRef.current &&
-        buttonRef.current &&
-        !dropdownRef.current.contains(event.target as Node) &&
-        !buttonRef.current.contains(event.target as Node)
-      ) {
-        setDropdownOpen(false)
-      }
+    if (currentSection === 'home' && typeof window !== 'undefined') {
+      setFavorites(getFavorites())
+      setHistory(getHistory())
     }
+  }, [currentSection])
 
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [dropdownOpen])
-
-  const usesFirebase = ['resumos', 'artigos', 'mascaras', 'frases', 'checklists', 'tutoriais', 'videos'].includes(currentSection)
-  const usesSpecs = usesFirebase || currentSection === 'calculadoras' || currentSection === 'geradores'
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMobileMenuOpen(false)
+    }
+    document.addEventListener('keydown', handleEsc)
+    return () => document.removeEventListener('keydown', handleEsc)
+  }, [])
 
   return (
     <div className="min-h-screen">
-      <header className="fixed top-0 left-0 right-0 h-16 bg-bg/98 backdrop-blur-xl border-b border-border z-50">
-        <div className="container mx-auto px-8 h-full flex items-center justify-between">
-          <div className="flex items-center gap-8">
-            <button 
-              onClick={() => setCurrentSection('home')}
-              className="text-2xl font-bold text-accent2 hover:text-accent transition-colors"
+      {/* Skip to content */}
+      <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-[100] focus:px-4 focus:py-2 focus:bg-accent focus:text-white focus:rounded-lg">
+        Ir para conteúdo principal
+      </a>
+
+      {/* Header */}
+      <header className="fixed top-0 left-0 right-0 bg-bg/98 backdrop-blur-xl border-b border-border z-50">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="lg:hidden p-2 rounded-lg bg-surface2 hover:bg-border transition-all"
+              aria-label={mobileMenuOpen ? 'Fechar menu' : 'Abrir menu'}
+              aria-expanded={mobileMenuOpen}
             >
-              RadioHub <span className="text-sm text-text3 font-normal">v10.0</span>
+              {mobileMenuOpen ? '✕' : '☰'}
             </button>
-            
-            <nav className="flex gap-1.5">
-              {[
-                { id: 'home', label: '⌂ Home' },
-                { id: 'resumos', label: '📚 Resumos' },
-                { id: 'artigos', label: '📄 Artigos' },
-                { id: 'calculadoras', label: '🧮 Calculadoras' },
-                { id: 'geradores', label: '⚙️ Geradores' },
-                { id: 'mascaras', label: '📝 Máscaras' },
-                { id: 'frases', label: '💬 Frases' },
-                { id: 'checklists', label: '✅ Checklists' },
-                { id: 'tutoriais', label: '🎓 Tutoriais' },
-                { id: 'videos', label: '🎬 Vídeos' }
-              ].map(section => (
-                <button
-                  key={section.id}
-                  onClick={() => setCurrentSection(section.id)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                    currentSection === section.id
-                      ? 'bg-accent/20 text-accent border border-accent/30'
-                      : 'text-text3 hover:text-text hover:bg-surface2'
-                  }`}
-                >
-                  {section.label}
-                </button>
-              ))}
-            </nav>
+            <button
+              onClick={() => navigateTo('home')}
+              className="flex items-baseline hover:opacity-85 transition-opacity"
+            >
+              <span className="text-2xl sm:text-3xl font-bold tracking-tight">
+                <span className="bg-gradient-to-r from-accent2 to-text bg-clip-text text-transparent">Radiology</span>
+                <span className="text-accent font-extrabold">HUB</span>
+              </span>
+              <span className="text-xs sm:text-sm text-text3 font-medium ml-0.5">.app</span>
+            </button>
           </div>
-          
-          <div className="flex items-center gap-4">
+
+          <nav className="hidden lg:flex gap-1" aria-label="Navegação principal">
+            {NAV_SECTIONS.map(section => (
+              <button
+                key={section.id}
+                onClick={() => navigateTo(section.id)}
+                aria-current={currentSection === section.id ? 'page' : undefined}
+                className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                  currentSection === section.id
+                    ? 'bg-accent/20 text-accent border border-accent/30'
+                    : 'text-text3 hover:text-text hover:bg-surface2'
+                }`}
+              >
+                <span className="hidden xl:inline" aria-hidden="true">{section.icon} </span>{section.label}
+              </button>
+            ))}
+          </nav>
+
+          <div className="flex items-center gap-2 sm:gap-3">
+            <SearchBar onSelectResult={handleSearchSelect} />
             <button
               onClick={toggleTheme}
               className="p-2 rounded-lg bg-surface2 hover:bg-border transition-all"
-              title={theme === 'dark' ? 'Ativar modo claro' : 'Ativar modo escuro'}
+              aria-label={theme === 'dark' ? 'Ativar modo claro' : 'Ativar modo escuro'}
             >
               {theme === 'dark' ? '☀️' : '🌙'}
             </button>
-            <div className="text-sm text-text3">
-              🔥 Powered by Next.js + Vercel
-            </div>
           </div>
         </div>
-      </header>
 
-      {currentSection !== 'home' && usesSpecs && (
-        <div className="fixed top-16 left-0 right-0 bg-surface border-b border-accent/30 z-40">
-          <div className="container mx-auto px-8 py-2 flex flex-wrap items-center gap-1.5">
-            {Object.entries(SPECS).map(([key, spec]) => (
-              <div key={key} className="relative">
+        {/* Mobile nav */}
+        {mobileMenuOpen && (
+          <nav className="lg:hidden border-t border-border bg-surface" aria-label="Menu mobile">
+            <div className="container mx-auto px-4 py-3 grid grid-cols-3 sm:grid-cols-5 gap-2">
+              {NAV_SECTIONS.map(section => (
                 <button
-                  ref={currentSpec === key ? buttonRef : null}
-                  onClick={() => handleSpecChange(key)}
-                  className={`px-3 py-2 rounded text-xs font-semibold whitespace-nowrap transition-all ${
-                    currentSpec === key
-                      ? 'bg-accent text-white shadow-md'
-                      : 'bg-surface2 text-text2 hover:bg-border2 hover:text-text'
+                  key={section.id}
+                  onClick={() => navigateTo(section.id)}
+                  aria-current={currentSection === section.id ? 'page' : undefined}
+                  className={`flex flex-col items-center gap-1 p-2 rounded-lg text-center transition-all ${
+                    currentSection === section.id
+                      ? 'bg-accent/20 text-accent'
+                      : 'text-text3 hover:text-text hover:bg-surface2'
                   }`}
                 >
-                  {spec.icon} {spec.label}
-                  {currentSpec === key && usesFirebase && spec.subs.length > 0 && (
-                    <span className={`ml-1 transition-transform inline-block ${dropdownOpen ? 'rotate-180' : ''}`}>▼</span>
-                  )}
+                  <span className="text-lg" aria-hidden="true">{section.icon}</span>
+                  <span className="text-[10px] font-medium">{section.label}</span>
                 </button>
-                
-                {currentSpec === key && dropdownOpen && usesFirebase && spec.subs.length > 0 && (
-                  <div
-                    ref={dropdownRef}
-                    className="absolute top-full left-0 mt-2 w-64 bg-surface border border-border rounded-lg shadow-xl max-h-96 overflow-y-auto z-50"
-                  >
-                    <button
-                      onClick={() => {
-                        setCurrentSubArea('all')
-                        setDropdownOpen(false)
-                      }}
-                      className={`w-full text-left px-4 py-2 text-sm hover:bg-accent/10 transition-colors ${
-                        currentSubArea === 'all' ? 'bg-accent/20 text-accent font-semibold' : 'text-text'
-                      }`}
-                    >
-                      ⊕ Todas as sub-áreas
-                    </button>
-                    {spec.subs.map(sub => (
-                      <button
-                        key={sub}
-                        onClick={() => {
-                          setCurrentSubArea(sub)
-                          setDropdownOpen(false)
-                        }}
-                        className={`w-full text-left px-4 py-2 text-sm hover:bg-accent/10 transition-colors ${
-                          currentSubArea === sub ? 'bg-accent/20 text-accent font-semibold' : 'text-text'
-                        }`}
-                      >
-                        {sub}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
+              ))}
+            </div>
+          </nav>
+        )}
+      </header>
+
+      {/* Specialty bar */}
+      {currentSection !== 'home' && usesSpecs && (
+        <SpecBar
+          currentSpec={currentSpec}
+          currentSubArea={currentSubArea}
+          usesFirebase={usesFirebase}
+          onSpecChange={(spec) => { setCurrentSpec(spec); setCurrentSubArea('all') }}
+          onSubAreaChange={setCurrentSubArea}
+        />
       )}
 
-      <main className={`${currentSection === 'home' ? 'pt-16' : usesSpecs ? 'pt-[72px]' : 'pt-16'} min-h-screen`}>
-        <div className="container mx-auto px-8 py-12">
-          
+      <main
+        id="main-content"
+        className={`${currentSection === 'home' ? 'pt-16' : usesSpecs ? 'pt-[128px] sm:pt-[176px]' : 'pt-16'} min-h-screen`}
+      >
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-12">
+
+          {/* HOME */}
           {currentSection === 'home' && (
             <div>
-              <div className="text-center max-w-4xl mx-auto mb-12">
-                <h1 className="text-5xl font-bold mb-4 text-text">
+              <div className="text-center max-w-4xl mx-auto mb-8 sm:mb-12">
+                <h1 className="text-3xl sm:text-5xl font-bold mb-4 text-text">
                   Ferramentas para <span className="bg-gradient-to-r from-accent2 to-accent bg-clip-text text-transparent">radiologistas</span>
                 </h1>
-                <p className="text-lg text-text2 mb-6">
+                <p className="text-sm sm:text-lg text-text2 mb-6">
                   Calculadoras médicas, resumos técnicos, geradores de laudo e checklists — tudo organizado por especialidade radiológica.
                 </p>
-                <div className="flex items-center justify-center gap-3">
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
                   <button
-                    onClick={() => setCurrentSection('resumos')}
-                    className="px-5 py-2 bg-accent text-white rounded-lg hover:bg-accent2 transition-all font-semibold text-sm"
+                    onClick={() => navigateTo('resumos')}
+                    className="w-full sm:w-auto px-5 py-2 bg-accent text-white rounded-lg hover:bg-accent2 transition-all font-semibold text-sm"
                   >
-                    📚 Explorar Resumos
+                    Explorar Resumos
                   </button>
                   <button
-                    onClick={() => setCurrentSection('calculadoras')}
-                    className="px-5 py-2 bg-surface2 text-text border border-border rounded-lg hover:border-accent/50 transition-all font-semibold text-sm"
+                    onClick={() => navigateTo('calculadoras')}
+                    className="w-full sm:w-auto px-5 py-2 bg-surface2 text-text border border-border rounded-lg hover:border-accent/50 transition-all font-semibold text-sm"
                   >
-                    🧮 Ver Calculadoras
+                    Ver Calculadoras
                   </button>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 mb-12">
-                {[
-                  { id: 'resumos', icon: '📚', label: 'Resumos', desc: 'Resumos técnicos por especialidade' },
-                  { id: 'artigos', icon: '📄', label: 'Artigos', desc: 'Resumos de artigos científicos' },
-                  { id: 'calculadoras', icon: '🧮', label: 'Calculadoras', desc: 'eGFR, NIHSS, BI-RADS' },
-                  { id: 'geradores', icon: '⚙️', label: 'Geradores', desc: 'Laudos automáticos' },
-                  { id: 'mascaras', icon: '📝', label: 'Máscaras', desc: 'Templates de laudo' },
-                  { id: 'frases', icon: '💬', label: 'Frases', desc: 'Frases prontas' },
-                  { id: 'checklists', icon: '✅', label: 'Checklists', desc: 'Avaliação sistemática' },
-                  { id: 'tutoriais', icon: '🎓', label: 'Tutoriais', desc: 'Guias passo a passo' },
-                  { id: 'videos', icon: '🎬', label: 'Vídeos', desc: 'Casos práticos' }
-                ].map(section => (
-                  <div 
+              {/* Section grid */}
+              <div className="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-5 gap-2 sm:gap-3 mb-8 sm:mb-12">
+                {HOME_SECTIONS.map(section => (
+                  <button
                     key={section.id}
-                    onClick={() => setCurrentSection(section.id)}
-                    className="bg-surface border border-border rounded-lg p-4 hover:border-accent/50 hover:shadow-md transition-all cursor-pointer group"
+                    onClick={() => navigateTo(section.id)}
+                    className="bg-surface border border-border rounded-lg p-3 sm:p-4 hover:border-accent/50 hover:shadow-md transition-all cursor-pointer group text-left"
                   >
-                    <div className="text-3xl mb-2">{section.icon}</div>
-                    <h3 className="text-sm font-bold mb-1 text-text group-hover:text-accent transition-colors">{section.label}</h3>
-                    <p className="text-xs text-text3">{section.desc}</p>
-                  </div>
+                    <div className="text-2xl sm:text-3xl mb-1 sm:mb-2" aria-hidden="true">{section.icon}</div>
+                    <h3 className="text-xs sm:text-sm font-bold mb-0.5 text-text group-hover:text-accent transition-colors">{section.label}</h3>
+                    <p className="text-[10px] sm:text-xs text-text3 hidden sm:block">{section.desc}</p>
+                  </button>
                 ))}
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-12">
-                <div className="bg-surface border border-border rounded-xl p-6">
-                  <h2 className="text-xl font-bold mb-4 flex items-center gap-2 text-text">
-                    🔥 Últimas Atualizações
+              {/* Favorites */}
+              {favorites.length > 0 && (
+                <div className="bg-surface border border-border rounded-xl p-4 sm:p-6 mb-4 sm:mb-6">
+                  <h2 className="text-lg sm:text-xl font-bold mb-4 flex items-center gap-2 text-text">
+                    <span aria-hidden="true">★</span> Favoritos
                   </h2>
-                  <div className="space-y-3">
-                    <div className="flex items-start gap-3 pb-3 border-b border-border">
-                      <div className="text-2xl">📚</div>
-                      <div className="flex-1">
-                        <div className="text-sm font-semibold text-text">Resumo AVC Isquêmico</div>
-                        <div className="text-xs text-text3">Neurorradiologia • 18/02/2025</div>
-                      </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {favorites.slice(0, 6).map(fav => (
+                      <button
+                        key={fav.id}
+                        onClick={() => {
+                          navigateTo(fav.tipo, fav.especialidade, 'all')
+                        }}
+                        className="text-left bg-surface2 border border-border rounded-lg p-3 hover:border-accent/50 transition-all group"
+                      >
+                        <div className="text-sm font-semibold text-text group-hover:text-accent transition-colors line-clamp-1">{fav.titulo}</div>
+                        <div className="text-xs text-text3 mt-1">
+                          {TYPE_LABELS[fav.tipo as keyof typeof TYPE_LABELS] || fav.tipo}
+                          {fav.subarea && ` · ${fav.subarea}`}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* History */}
+              {history.length > 0 && (
+                <div className="bg-surface border border-border rounded-xl p-4 sm:p-6 mb-4 sm:mb-6">
+                  <h2 className="text-lg sm:text-xl font-bold mb-4 flex items-center gap-2 text-text">
+                    <span aria-hidden="true">🕐</span> Vistos Recentemente
+                  </h2>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {history.slice(0, 6).map(h => (
+                      <button
+                        key={h.id}
+                        onClick={() => {
+                          navigateTo(h.tipo, h.especialidade, 'all')
+                        }}
+                        className="text-left bg-surface2 border border-border rounded-lg p-3 hover:border-accent/50 transition-all group"
+                      >
+                        <div className="text-sm font-semibold text-text group-hover:text-accent transition-colors line-clamp-1">{h.titulo}</div>
+                        <div className="text-xs text-text3 mt-1">
+                          {TYPE_LABELS[h.tipo as keyof typeof TYPE_LABELS] || h.tipo}
+                          {h.subarea && ` · ${h.subarea}`}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Stats + News */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 mb-8 sm:mb-12">
+                <div className="bg-gradient-to-br from-accent/10 to-accent2/10 border border-accent/30 rounded-xl p-4 sm:p-6">
+                  <h2 className="text-lg sm:text-xl font-bold mb-4 text-text">
+                    <span aria-hidden="true">📊</span> Estatísticas
+                  </h2>
+                  <div className="grid grid-cols-3 gap-4 mb-6">
+                    <div className="text-center">
+                      <div className="text-2xl sm:text-3xl font-bold text-accent">11</div>
+                      <div className="text-[10px] sm:text-xs text-text3">Especialidades</div>
                     </div>
-                    <div className="flex items-start gap-3 pb-3 border-b border-border">
-                      <div className="text-2xl">❤️</div>
-                      <div className="flex-1">
-                        <div className="text-sm font-semibold text-text">Nova: Cardiovascular</div>
-                        <div className="text-xs text-text3">Especialidade separada • Hoje</div>
-                      </div>
+                    <div className="text-center">
+                      <div className="text-2xl sm:text-3xl font-bold text-accent">90+</div>
+                      <div className="text-[10px] sm:text-xs text-text3">Sub-áreas</div>
                     </div>
-                    <div className="flex items-start gap-3 pb-3 border-b border-border">
-                      <div className="text-2xl">💉</div>
-                      <div className="flex-1">
-                        <div className="text-sm font-semibold text-text">Nova: Intervenção</div>
-                        <div className="text-xs text-text3">Especialidade separada • Hoje</div>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-3">
-                      <div className="text-2xl">🔥</div>
-                      <div className="flex-1">
-                        <div className="text-sm font-semibold text-text">v10.0 - Cards Pequenos</div>
-                        <div className="text-xs text-text3">Grid com títulos • Hoje</div>
-                      </div>
+                    <div className="text-center">
+                      <div className="text-2xl sm:text-3xl font-bold text-accent">9</div>
+                      <div className="text-[10px] sm:text-xs text-text3">Ferramentas</div>
                     </div>
                   </div>
                 </div>
 
-                <div className="bg-gradient-to-br from-accent/10 to-accent2/10 border border-accent/30 rounded-xl p-6">
-                  <h2 className="text-xl font-bold mb-4 text-text">
-                    📊 Estatísticas
+                <div className="bg-surface border border-border rounded-xl p-4 sm:p-6">
+                  <h2 className="text-lg sm:text-xl font-bold mb-4 flex items-center gap-2 text-text">
+                    <span aria-hidden="true">🔥</span> Novidades
                   </h2>
-                  <div className="grid grid-cols-3 gap-4 mb-6">
-                    <div className="text-center">
-                      <div className="text-3xl font-bold text-accent">11</div>
-                      <div className="text-xs text-text3">Especialidades</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-3xl font-bold text-accent">90+</div>
-                      <div className="text-xs text-text3">Sub-áreas</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-3xl font-bold text-accent">9</div>
-                      <div className="text-xs text-text3">Ferramentas</div>
-                    </div>
-                  </div>
-                  <div className="bg-surface/50 rounded-lg p-4 border border-accent/20">
-                    <div className="text-sm font-semibold text-text mb-2">🚀 v10.0 Completo</div>
-                    <div className="text-xs text-text3 leading-relaxed">
-                      11 especialidades organizadas, cards pequenos em grid, dropdown vertical, imagens com legendas!
-                    </div>
+                  <div className="space-y-3 text-sm">
+                    {[
+                      { icon: '★', title: 'Favoritos', desc: 'Salve conteúdos para acesso rápido' },
+                      { icon: '🕐', title: 'Histórico', desc: 'Últimos conteúdos acessados' },
+                      { icon: '🔍', title: 'Busca avançada', desc: 'Filtre por tipo e especialidade' },
+                      { icon: '↗', title: 'Compartilhar', desc: 'Envie conteúdo via link' },
+                    ].map((item, i) => (
+                      <div key={i} className={`flex items-start gap-3 ${i < 3 ? 'pb-3 border-b border-border' : ''}`}>
+                        <div className="text-xl sm:text-2xl" aria-hidden="true">{item.icon}</div>
+                        <div className="flex-1">
+                          <div className="font-semibold text-text">{item.title}</div>
+                          <div className="text-xs text-text3">{item.desc}</div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
               </div>
             </div>
           )}
 
+          {/* CONTENT SECTIONS (Firebase) */}
           {currentSection !== 'home' && usesFirebase && (
             <div>
-              <h2 className="text-3xl font-bold mb-8 flex items-center gap-3 text-text">
-                {currentSection === 'resumos' && '📚 Resumos'}
-                {currentSection === 'artigos' && '📄 Resumo de Artigos'}
-                {currentSection === 'mascaras' && '📝 Máscaras de Laudo'}
-                {currentSection === 'frases' && '💬 Frases Prontas'}
-                {currentSection === 'checklists' && '✅ Checklists'}
-                {currentSection === 'tutoriais' && '🎓 Tutoriais'}
-                {currentSection === 'videos' && '🎬 Vídeos'}
-                <span className="text-text3 text-lg font-normal">
-                  {SPECS[currentSpec as keyof typeof SPECS].icon} {SPECS[currentSpec as keyof typeof SPECS].label}
+              <h2 className="text-xl sm:text-3xl font-bold mb-4 sm:mb-8 flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3 text-text">
+                <span>
+                  {currentSection === 'resumos' && 'Resumos'}
+                  {currentSection === 'artigos' && 'Resumo de Artigos'}
+                  {currentSection === 'mascaras' && 'Máscaras de Laudo'}
+                  {currentSection === 'frases' && 'Frases Prontas'}
+                  {currentSection === 'checklists' && 'Checklists'}
+                  {currentSection === 'tutoriais' && 'Tutoriais'}
+                  {currentSection === 'videos' && 'Vídeos'}
+                </span>
+                <span className="text-text3 text-sm sm:text-lg font-normal">
+                  <span aria-hidden="true">{SPECS[currentSpec as keyof typeof SPECS].icon}</span> {SPECS[currentSpec as keyof typeof SPECS].label}
                   {currentSubArea !== 'all' && ` · ${currentSubArea}`}
                 </span>
               </h2>
-              
-              <ContentList 
-                tipo={currentSection as any}
+
+              <ContentList
+                tipo={currentSection as ContentType}
                 especialidade={currentSpec}
                 subarea={currentSubArea}
+                initialItemId={searchItemId}
               />
             </div>
           )}
 
+          {/* CALCULADORAS */}
           {currentSection === 'calculadoras' && (
             <div>
-              <div className="mb-8">
-                <h2 className="text-3xl font-bold flex items-center gap-3 text-text mb-2">
-                  🧮 Calculadoras Médicas
+              <div className="mb-6 sm:mb-8">
+                <h2 className="text-xl sm:text-3xl font-bold flex items-center gap-3 text-text mb-2">
+                  Calculadoras Médicas
                 </h2>
-                <p className="text-text2">
-                  {SPECS[currentSpec as keyof typeof SPECS].icon} {SPECS[currentSpec as keyof typeof SPECS].label}
+                <p className="text-text2 text-sm">
+                  <span aria-hidden="true">{SPECS[currentSpec as keyof typeof SPECS].icon}</span> {SPECS[currentSpec as keyof typeof SPECS].label}
                 </p>
               </div>
-              
-              {CALCULADORAS_POR_SPEC[currentSpec] && CALCULADORAS_POR_SPEC[currentSpec].length > 0 ? (
+
+              {CALCULADORAS_POR_SPEC[currentSpec]?.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {CALCULADORAS_POR_SPEC[currentSpec].map((calc, index) => (
-                    <div key={index} className="bg-surface border border-border rounded-xl p-6 hover:border-accent/50 hover:shadow-lg transition-all group">
-                      <div className="flex items-start justify-between mb-4">
-                        <div className="flex items-center gap-3">
-                          <div className="text-3xl">🧮</div>
-                          <div>
-                            <h3 className="text-lg font-bold text-text group-hover:text-accent transition-colors">{calc.nome}</h3>
-                            <p className="text-sm text-text3">{calc.descricao}</p>
-                          </div>
+                    <div key={index} className="bg-surface border border-border rounded-xl p-4 sm:p-6 hover:border-accent/50 hover:shadow-lg transition-all group">
+                      <div className="flex items-start gap-3 mb-4">
+                        <div className="text-2xl sm:text-3xl" aria-hidden="true">🧮</div>
+                        <div>
+                          <h3 className="text-base sm:text-lg font-bold text-text group-hover:text-accent transition-colors">{calc.nome}</h3>
+                          <p className="text-xs sm:text-sm text-text3">{calc.descricao}</p>
                         </div>
                       </div>
-                      <button className="w-full px-4 py-2 bg-accent/10 text-accent rounded-lg hover:bg-accent hover:text-white transition-all text-sm font-semibold">
-                        🚧 Em desenvolvimento
-                      </button>
+                      <div className="px-4 py-2 bg-surface2 text-text3 rounded-lg text-sm text-center">
+                        Em desenvolvimento
+                      </div>
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="bg-surface border border-border rounded-xl p-16 text-center">
-                  <div className="text-6xl mb-4 opacity-50">🧮</div>
-                  <p className="text-xl text-text2 mb-2">Nenhuma calculadora disponível</p>
+                <div className="bg-surface border border-border rounded-xl p-8 sm:p-16 text-center">
+                  <div className="text-5xl sm:text-6xl mb-4 opacity-50" aria-hidden="true">🧮</div>
+                  <p className="text-lg sm:text-xl text-text2 mb-2">Nenhuma calculadora disponível</p>
                   <p className="text-sm text-text3">Selecione outra especialidade ou aguarde novas adições</p>
                 </div>
               )}
             </div>
           )}
 
+          {/* GERADORES */}
           {currentSection === 'geradores' && (
             <div>
-              <div className="mb-8">
-                <h2 className="text-3xl font-bold flex items-center gap-3 text-text mb-2">
-                  ⚙️ Geradores de Laudo
+              <div className="mb-6 sm:mb-8">
+                <h2 className="text-xl sm:text-3xl font-bold flex items-center gap-3 text-text mb-2">
+                  Geradores de Laudo
                 </h2>
-                <p className="text-text2">
-                  {SPECS[currentSpec as keyof typeof SPECS].icon} {SPECS[currentSpec as keyof typeof SPECS].label}
+                <p className="text-text2 text-sm">
+                  <span aria-hidden="true">{SPECS[currentSpec as keyof typeof SPECS].icon}</span> {SPECS[currentSpec as keyof typeof SPECS].label}
                 </p>
               </div>
-              
-              {GERADORES_POR_SPEC[currentSpec] && GERADORES_POR_SPEC[currentSpec].length > 0 ? (
+
+              {GERADORES_POR_SPEC[currentSpec]?.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {GERADORES_POR_SPEC[currentSpec].map((ger, index) => (
-                    <div key={index} className="bg-surface border border-border rounded-xl p-6 hover:border-accent/50 hover:shadow-lg transition-all group">
-                      <div className="flex items-start justify-between mb-4">
-                        <div className="flex items-center gap-3">
-                          <div className="text-3xl">⚙️</div>
-                          <div>
-                            <h3 className="text-lg font-bold text-text group-hover:text-accent transition-colors">{ger.nome}</h3>
-                            <p className="text-sm text-text3">{ger.descricao}</p>
-                          </div>
+                    <div key={index} className="bg-surface border border-border rounded-xl p-4 sm:p-6 hover:border-accent/50 hover:shadow-lg transition-all group">
+                      <div className="flex items-start gap-3 mb-4">
+                        <div className="text-2xl sm:text-3xl" aria-hidden="true">⚙️</div>
+                        <div>
+                          <h3 className="text-base sm:text-lg font-bold text-text group-hover:text-accent transition-colors">{ger.nome}</h3>
+                          <p className="text-xs sm:text-sm text-text3">{ger.descricao}</p>
                         </div>
                       </div>
-                      <button className="w-full px-4 py-2 bg-accent/10 text-accent rounded-lg hover:bg-accent hover:text-white transition-all text-sm font-semibold">
-                        🚧 Em desenvolvimento
-                      </button>
+                      <div className="px-4 py-2 bg-surface2 text-text3 rounded-lg text-sm text-center">
+                        Em desenvolvimento
+                      </div>
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="bg-surface border border-border rounded-xl p-16 text-center">
-                  <div className="text-6xl mb-4 opacity-50">⚙️</div>
-                  <p className="text-xl text-text2 mb-2">Nenhum gerador disponível</p>
+                <div className="bg-surface border border-border rounded-xl p-8 sm:p-16 text-center">
+                  <div className="text-5xl sm:text-6xl mb-4 opacity-50" aria-hidden="true">⚙️</div>
+                  <p className="text-lg sm:text-xl text-text2 mb-2">Nenhum gerador disponível</p>
                   <p className="text-sm text-text3">Selecione outra especialidade ou aguarde novas adições</p>
                 </div>
               )}
             </div>
           )}
-          
+
         </div>
       </main>
+
+      {/* Footer */}
+      <footer className="border-t border-border bg-surface mt-12">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-text3">
+          <span>RadiologyHUB — São Paulo/SP, Brasil</span>
+          <a href="/termos" className="hover:text-accent transition-colors">
+            Termos de Uso e Política de Privacidade
+          </a>
+        </div>
+      </footer>
     </div>
   )
 }

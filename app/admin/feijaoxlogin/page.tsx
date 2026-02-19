@@ -40,7 +40,7 @@ export default function AdminLogin() {
         <div className="bg-surface border border-border rounded-2xl p-8 shadow-2xl">
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold text-text mb-2">🔐 Admin Login</h1>
-            <p className="text-text3 text-sm">RadioHub v9.1 - Painel Administrativo</p>
+            <p className="text-text3 text-sm">Radiologyhub - Painel Administrativo</p>
           </div>
 
           <form onSubmit={handleLogin} className="space-y-6">

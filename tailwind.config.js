@@ -23,7 +23,31 @@ module.exports = {
         orange: 'var(--orange)',
         red: 'var(--red)',
       },
+      typography: {
+        DEFAULT: {
+          css: {
+            '--tw-prose-body': 'var(--text2)',
+            '--tw-prose-headings': 'var(--text)',
+            '--tw-prose-lead': 'var(--text2)',
+            '--tw-prose-links': 'var(--accent)',
+            '--tw-prose-bold': 'var(--text)',
+            '--tw-prose-counters': 'var(--text3)',
+            '--tw-prose-bullets': 'var(--text3)',
+            '--tw-prose-hr': 'var(--border)',
+            '--tw-prose-quotes': 'var(--text2)',
+            '--tw-prose-quote-borders': 'var(--accent)',
+            '--tw-prose-captions': 'var(--text3)',
+            '--tw-prose-code': 'var(--accent)',
+            '--tw-prose-pre-code': 'var(--text)',
+            '--tw-prose-pre-bg': 'var(--surface2)',
+            '--tw-prose-th-borders': 'var(--border)',
+            '--tw-prose-td-borders': 'var(--border)',
+          },
+        },
+      },
     },
   },
-  plugins: [],
+  plugins: [
+    require('@tailwindcss/typography'),
+  ],
 }

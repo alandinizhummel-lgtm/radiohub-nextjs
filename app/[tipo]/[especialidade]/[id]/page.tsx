@@ -1,8 +1,12 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import ContentCard from '@/components/ContentCard'
+import { TYPE_LABELS, TYPE_SINGULAR } from '@/lib/specs'
+import type { ContentItem } from '@/lib/types'
+import { cachedFetch } from '@/lib/cached-fetch'
+import { addToHistory } from '@/lib/user-data'
 
 export default function ContentDetailPage() {
   const router = useRouter()
@@ -11,25 +15,26 @@ export default function ContentDetailPage() {
   const especialidade = params.especialidade as string
   const id = params.id as string
 
-  const [item, setItem] = useState<any>(null)
+  const [item, setItem] = useState<ContentItem | null>(null)
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    fetchItem()
-  }, [])
-
-  const fetchItem = async () => {
+  const fetchItem = useCallback(async () => {
     try {
-      const response = await fetch(`/api/content/${tipo}/${especialidade}/all`)
-      const data = await response.json()
-      const foundItem = data.items.find((i: any) => i.id === id)
-      setItem(foundItem)
-    } catch (error) {
-      console.error('Error:', error)
+      const data = await cachedFetch(`/api/content/${tipo}/${especialidade}/item/${id}`)
+      setItem(data.item)
+      if (data.item) {
+        addToHistory({ id, tipo, especialidade, titulo: data.item.titulo, subarea: data.item.subarea })
+      }
+    } catch {
+      setItem(null)
     } finally {
       setLoading(false)
     }
-  }
+  }, [tipo, especialidade, id])
+
+  useEffect(() => {
+    fetchItem()
+  }, [fetchItem])
 
   if (loading) {
     return (
@@ -63,15 +68,8 @@ export default function ContentDetailPage() {
     )
   }
 
-  const typeLabels: Record<string, string> = {
-    resumos: 'Resumo',
-    artigos: 'Artigo',
-    mascaras: 'Máscara',
-    frases: 'Frase',
-    checklists: 'Checklist',
-    tutoriais: 'Tutorial',
-    videos: 'Vídeo'
-  }
+  const tipoSingular = TYPE_SINGULAR[tipo as keyof typeof TYPE_SINGULAR] || tipo
+  const tipoLabel = TYPE_LABELS[tipo as keyof typeof TYPE_LABELS] || tipo
 
   return (
     <div className="min-h-screen bg-bg pt-16">
@@ -80,7 +78,7 @@ export default function ContentDetailPage() {
           onClick={() => router.back()}
           className="mb-6 text-accent hover:text-accent2 transition-colors flex items-center gap-2"
         >
-          ← Voltar para {typeLabels[tipo]}s
+          ← Voltar para {tipoLabel}s
         </button>
 
         <ContentCard
@@ -90,7 +88,8 @@ export default function ContentDetailPage() {
           subarea={item.subarea}
           autor={item.autor}
           dataAtualizacao={item.dataAtualizacao}
-          tipo={tipo.slice(0, -1) as any}
+          tipo={tipoSingular as any}
+          especialidade={especialidade}
         />
       </div>
     </div>

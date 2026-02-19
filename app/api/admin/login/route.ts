@@ -1,32 +1,46 @@
 import { NextResponse } from 'next/server'
-import { cookies } from 'next/headers'
-
-// ATENÇÃO ALAN: Muda esses valores depois!
-const ADMIN_USERS = [
-  { username: 'admin', password: 'radiohub2025' },
-  { username: 'alan', password: 'radiohub123' },
-]
+import { verifyCredentials, createToken } from '@/lib/auth'
+import { checkRateLimit, cleanupRateLimits } from '@/lib/rate-limit'
 
 export async function POST(request: Request) {
   try {
+    // Rate limit by IP
+    const forwarded = request.headers.get('x-forwarded-for')
+    const ip = forwarded?.split(',')[0]?.trim() || 'unknown'
+
+    cleanupRateLimits()
+    const { allowed, retryAfterSeconds } = checkRateLimit(ip)
+
+    if (!allowed) {
+      return NextResponse.json(
+        { error: `Muitas tentativas. Tente novamente em ${retryAfterSeconds} segundos.` },
+        { status: 429 }
+      )
+    }
+
     const { username, password } = await request.json()
 
-    // Verifica credenciais
-    const user = ADMIN_USERS.find(
-      u => u.username === username && u.password === password
-    )
-
-    if (!user) {
+    if (
+      typeof username !== 'string' ||
+      typeof password !== 'string' ||
+      !username ||
+      !password
+    ) {
       return NextResponse.json(
-        { error: 'Invalid credentials' },
+        { error: 'Credenciais inválidas' },
         { status: 401 }
       )
     }
 
-    // Cria token simples (você pode melhorar depois com JWT)
-    const token = Buffer.from(`${username}:${Date.now()}`).toString('base64')
+    if (!verifyCredentials(username, password)) {
+      return NextResponse.json(
+        { error: 'Credenciais inválidas' },
+        { status: 401 }
+      )
+    }
 
-    // Seta cookie
+    const token = createToken(username)
+
     const response = NextResponse.json({ success: true })
     response.cookies.set('admin-token', token, {
       httpOnly: true,
@@ -36,9 +50,9 @@ export async function POST(request: Request) {
     })
 
     return response
-  } catch (error) {
+  } catch {
     return NextResponse.json(
-      { error: 'Login failed' },
+      { error: 'Falha no login' },
       { status: 500 }
     )
   }
