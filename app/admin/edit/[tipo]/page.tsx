@@ -12,6 +12,14 @@ const SPECS = {
     label: 'Cabeça e Pescoço',
     subs: ['Tireoide/Paratireoide', 'Laringe/Faringe', 'Cavidade Oral/Mandíbula', 'Órbita/Globo Ocular', 'Ouvido/Mastoide', 'Glândulas Salivares', 'Espaços Cervicais', 'Linfonodos Cervicais']
   },
+  torax: {
+    label: 'Tórax',
+    subs: ['Parênquima Pulmonar', 'Nódulo/Massa Pulmonar', 'Infecção/Pneumonia', 'Interstício/Fibrose', 'DPOC/Enfisema', 'Derrame Pleural/Empiema', 'Mediastino', 'Pleura', 'Trauma Torácico', 'Pediatria Tórax']
+  },
+  cardio: {
+    label: 'Cardiovascular',
+    subs: ['Aorta Torácica', 'Aorta Abdominal', 'Cardíaco/Coração', 'Coronárias', 'Artérias Periféricas', 'Veias/TEP', 'Dissecção Aórtica', 'Aneurismas', 'Malformações Vasculares']
+  },
   gi: {
     label: 'Abdome · Digestivo',
     subs: ['Fígado', 'Vias Biliares/Vesícula', 'Pâncreas', 'Baço', 'Estômago/Esôfago', 'Intestino Delgado', 'Cólon/Reto', 'Peritônio/Mesentério', 'Abdome Agudo']
@@ -28,17 +36,13 @@ const SPECS = {
     label: 'Mamária',
     subs: ['Mamografia', 'US Mama', 'RM Mama', 'BI-RADS', 'Mama Masculina', 'Intervenção/Biópsia Mama']
   },
-  vasc: {
-    label: 'Vascular e Interv.',
-    subs: ['Aorta Torácica', 'Aorta Abdominal', 'Artérias Periféricas', 'Veias/TEP', 'Tórax/Pulmão Vascular', 'Intervenção Arterial', 'Intervenção Venosa', 'Intervenção Não Vascular']
-  },
-  torax: {
-    label: 'Tórax',
-    subs: ['Parênquima Pulmonar', 'Nódulo/Massa Pulmonar', 'Infecção/Pneumonia', 'Interstício/Fibrose', 'DPOC/Enfisema', 'Derrame Pleural/Empiema', 'Mediastino', 'Pleura', 'Trauma Torácico', 'Pediatria Tórax']
-  },
   us: {
     label: 'Ultrassonografia',
     subs: ['Abdome Geral', 'Cervical/Tireoide', 'Ginecologia', 'Obstetrícia', 'Doppler', 'Músculo-esquelético US', 'Rins/Vias/Próstata', 'Testículo/Pênis', 'Tórax US', 'Globo Ocular', 'Transfontanelar', 'Procedimentos US', 'Pediatria US']
+  },
+  interv: {
+    label: 'Intervenção',
+    subs: ['Embolização', 'Drenagem/Biópsia', 'Intervenção Vascular Arterial', 'Intervenção Vascular Venosa', 'Neuro Intervenção', 'Procedimentos Oncológicos', 'Acesso Vascular']
   },
   contraste: {
     label: 'Contraste',
@@ -213,7 +217,7 @@ export default function AdminEditor() {
             value={selectedSpec}
             onChange={(e) => {
               setSelectedSpec(e.target.value)
-              setSubarea('') // Reseta sub-área ao mudar especialidade
+              setSubarea('')
             }}
             className="px-4 py-2 bg-surface2 border border-border rounded-lg text-text focus:border-accent focus:outline-none"
           >
