@@ -22,6 +22,7 @@ export default function ContentList({ tipo, especialidade, subarea }: ContentLis
   const [items, setItems] = useState<ContentItem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [selectedItem, setSelectedItem] = useState<ContentItem | null>(null)
 
   useEffect(() => {
     fetchContent()
@@ -87,24 +88,75 @@ export default function ContentList({ tipo, especialidade, subarea }: ContentLis
     )
   }
 
+  if (selectedItem) {
+    return (
+      <div>
+        <button
+          onClick={() => setSelectedItem(null)}
+          className="mb-6 text-accent hover:text-accent2 transition-colors flex items-center gap-2"
+        >
+          ← Voltar para a lista
+        </button>
+        <ContentCard
+          id={selectedItem.id}
+          titulo={selectedItem.titulo}
+          conteudo={selectedItem.conteudo}
+          subarea={selectedItem.subarea}
+          autor={selectedItem.autor}
+          dataAtualizacao={selectedItem.dataAtualizacao}
+          tipo={tipo.slice(0, -1) as any}
+        />
+      </div>
+    )
+  }
+
+  const typeIcons: Record<string, string> = {
+    resumos: '📚',
+    artigos: '📄',
+    mascaras: '📝',
+    frases: '💬',
+    checklists: '✅',
+    tutoriais: '🎓',
+    videos: '🎬'
+  }
+
   return (
     <div>
       <div className="mb-4 text-sm text-text3">
         {items.length} {items.length === 1 ? 'item encontrado' : 'itens encontrados'}
       </div>
       
-      <div className="grid grid-cols-1 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {items.map((item) => (
-          <ContentCard
+          <div
             key={item.id}
-            id={item.id}
-            titulo={item.titulo}
-            conteudo={item.conteudo}
-            subarea={item.subarea}
-            autor={item.autor}
-            dataAtualizacao={item.dataAtualizacao}
-            tipo={tipo.slice(0, -1) as any}
-          />
+            onClick={() => setSelectedItem(item)}
+            className="bg-surface border border-border rounded-xl p-5 hover:border-accent hover:shadow-lg transition-all cursor-pointer group"
+          >
+            <div className="flex items-start gap-3 mb-3">
+              <div className="text-3xl">{typeIcons[tipo]}</div>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-lg font-bold text-text mb-1 group-hover:text-accent transition-colors line-clamp-2">
+                  {item.titulo}
+                </h3>
+                {item.subarea && (
+                  <span className="inline-block px-2 py-1 bg-accent/10 text-accent text-xs rounded-full">
+                    {item.subarea}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between pt-3 border-t border-border">
+              <div className="flex items-center gap-3 text-xs text-text3">
+                {item.autor && <span>✍️ {item.autor}</span>}
+                {item.dataAtualizacao && <span>📅 {item.dataAtualizacao}</span>}
+              </div>
+              <div className="text-accent text-sm font-semibold group-hover:translate-x-1 transition-transform">
+                Ver →
+              </div>
+            </div>
+          </div>
         ))}
       </div>
     </div>
