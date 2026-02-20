@@ -9,31 +9,66 @@ import { getFavorites, getHistory, type SavedItem } from '@/lib/user-data'
 
 const CALCULADORAS_POR_SPEC: Record<string, Array<{nome: string, descricao: string, link?: string}>> = {
   neuro: [
-    { nome: 'Escala NIHSS', descricao: 'Gravidade do AVC isquêmico' },
-    { nome: 'ASPECTS Score', descricao: 'Extensão de isquemia no território da ACM' }
+    { nome: 'ASPECTS Score', descricao: 'Extensão de isquemia no território da ACM', link: '/calculadora/aspects' },
+    { nome: 'NASCET', descricao: 'Grau de estenose carotídea', link: '/calculadora/nascet' },
+    { nome: 'Ao-SPINE', descricao: 'Classificação de lesões vertebrais', link: '/calculadora/ao-spine' },
+  ],
+  cn: [
+    { nome: 'ACR TI-RADS', descricao: 'Classificação de nódulos tireoidianos', link: '/calculadora/tirads' },
+    { nome: 'NI-RADS', descricao: 'Avaliação pós-tratamento cabeça e pescoço', link: '/calculadora/nirads' },
+    { nome: 'Volume Tireoide', descricao: 'Cálculo de volume tireoidiano', link: '/calculadora/volume-tireoide' },
+  ],
+  torax: [
+    { nome: 'Fleischner 2017', descricao: 'Manejo de nódulos pulmonares incidentais', link: '/calculadora/fleischner' },
+    { nome: 'Lung-RADS', descricao: 'Classificação de achados em rastreio pulmonar', link: '/calculadora/lung-rads' },
+    { nome: 'PESI Score', descricao: 'Gravidade de embolia pulmonar', link: '/calculadora/pesi' },
   ],
   cardio: [
     { nome: 'RM Cardíaca', descricao: 'Volumes, FE, massa, ECV, laudo assistido', link: '/calculadora/rm-cardiaca' },
-    { nome: 'Escore de Cálcio', descricao: 'Quantificação de cálcio coronariano' },
-    { nome: 'Fração de Ejeção', descricao: 'Cálculo de FE pelo método Simpson' }
+    { nome: 'CAD-RADS', descricao: 'Classificação de estenose coronariana na TC', link: '/calculadora/cad-rads' },
   ],
   gi: [
-    { nome: 'Child-Pugh', descricao: 'Classificação de cirrose hepática' },
-    { nome: 'MELD Score', descricao: 'Gravidade de doença hepática' }
+    { nome: 'LI-RADS', descricao: 'Classificação de lesões hepáticas (CHC)', link: '/calculadora/lirads' },
+    { nome: 'C-RADS', descricao: 'Classificação de colonoscopia virtual', link: '/calculadora/crads' },
+    { nome: 'Pancreatite (Balthazar)', descricao: 'Gravidade de pancreatite aguda na TC', link: '/calculadora/pancreatite' },
+    { nome: 'Gordura Hepática', descricao: 'Quantificação de esteatose por TC/RM', link: '/calculadora/gordura-hepatica' },
+    { nome: 'Volume Hepático', descricao: 'Volumetria hepática por fórmula elipsoide', link: '/calculadora/volume-hepatico' },
+    { nome: 'Volume Baço', descricao: 'Volumetria esplênica', link: '/calculadora/volume-baco' },
+    { nome: 'Trauma Hepático (AAST)', descricao: 'Classificação de trauma hepático', link: '/calculadora/trauma-hepatico' },
+    { nome: 'Trauma Esplênico (AAST)', descricao: 'Classificação de trauma esplênico', link: '/calculadora/trauma-esplenico' },
   ],
   gu: [
-    { nome: 'eGFR (CKD-EPI)', descricao: 'Taxa de filtração glomerular estimada' },
-    { nome: 'PSA Density', descricao: 'Densidade de PSA por volume prostático' }
+    { nome: 'PI-RADS v2.1', descricao: 'Classificação de lesões prostáticas na RM', link: '/calculadora/pirads' },
+    { nome: 'Bosniak v2019', descricao: 'Classificação de cistos renais', link: '/calculadora/bosniak' },
+    { nome: 'O-RADS', descricao: 'Classificação de massas ovarianas', link: '/calculadora/orads' },
+    { nome: 'eGFR (CKD-EPI)', descricao: 'Taxa de filtração glomerular estimada', link: '/calculadora/gfr' },
+    { nome: 'RENAL Score', descricao: 'Complexidade de massas renais', link: '/calculadora/renal-score' },
+    { nome: 'Adrenal RM', descricao: 'Caracterização de massas adrenais por RM', link: '/calculadora/adrenal-mri' },
+    { nome: 'Adrenal Washout', descricao: 'Washout de massas adrenais na TC', link: '/calculadora/adrenal-washout' },
+    { nome: 'Incidentalomas', descricao: 'Manejo de incidentalomas adrenais', link: '/calculadora/incidentalomas' },
+    { nome: 'Volume Próstata', descricao: 'Volumetria prostática e PSA density', link: '/calculadora/volume-prostata' },
+    { nome: 'Volume Bexiga', descricao: 'Cálculo de volume vesical', link: '/calculadora/volume-bexiga' },
+    { nome: 'Volume Testicular', descricao: 'Volumetria testicular', link: '/calculadora/volume-testicular' },
+    { nome: 'Trauma Renal (AAST)', descricao: 'Classificação de trauma renal', link: '/calculadora/trauma-renal' },
+  ],
+  msk: [
+    { nome: 'Bone-RADS', descricao: 'Classificação de lesões ósseas incidentais', link: '/calculadora/bone-rads' },
+    { nome: 'Villalta Score', descricao: 'Avaliação de síndrome pós-trombótica', link: '/calculadora/villalta' },
   ],
   mama: [
-    { nome: 'BI-RADS', descricao: 'Classificação de achados mamográficos' }
+    { nome: 'BI-RADS', descricao: 'Classificação de achados mamários', link: '/calculadora/birads' },
   ],
   us: [
-    { nome: 'Índice de Resistividade', descricao: 'Cálculo de IR ao Doppler' }
+    { nome: 'Índice de Resistividade', descricao: 'Cálculo de IR ao Doppler', link: '/calculadora/indice-resistivo' },
+    { nome: 'Idade Gestacional', descricao: 'Estimativa de IG por biometria fetal', link: '/calculadora/idade-gestacional' },
+    { nome: 'Volume de Órgão', descricao: 'Cálculo de volume por fórmula elipsoide', link: '/calculadora/volume-orgao' },
+  ],
+  interv: [
+    { nome: 'MIBG / Curie Score', descricao: 'Estadiamento de neuroblastoma', link: '/calculadora/mibg-curie' },
   ],
   contraste: [
-    { nome: 'eGFR para Contraste', descricao: 'Segurança de administração de contraste' }
-  ]
+    { nome: 'eGFR para Contraste', descricao: 'Segurança de administração de contraste', link: '/calculadora/gfr' },
+  ],
 }
 
 const GERADORES_POR_SPEC: Record<string, Array<{nome: string, descricao: string}>> = {
