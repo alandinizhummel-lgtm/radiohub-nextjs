@@ -611,26 +611,47 @@ for (const segId of Object.keys(SEG_ANGLES).map(Number)) {
   }
 }
 
-function LayeredBullseye({ selected, onToggle, accentColor, pattern, compact }: {
-  selected: Set<number>
-  onToggle: (seg: number) => void
-  accentColor: string
-  pattern: string
+// Pre-compute radial divider lines between segments
+const RADIAL_LINES = [
+  // Basal + Mid share same angles → lines from R3 to R1
+  ...[-30, 30, 90, 150, 210, 270].map(a => {
+    const p1 = polar(BCX, BCY, R3, a), p2 = polar(BCX, BCY, R1, a)
+    return { x1: p1.x, y1: p1.y, x2: p2.x, y2: p2.y }
+  }),
+  // Apical → lines from R4 to R3
+  ...[-45, 45, 135, 225].map(a => {
+    const p1 = polar(BCX, BCY, R4, a), p2 = polar(BCX, BCY, R3, a)
+    return { x1: p1.x, y1: p1.y, x2: p2.x, y2: p2.y }
+  }),
+]
+
+const ENH_COLOR = '#1a1a1a' // black for late enhancement
+
+function CycleBullseye({ segmentosPorPadrao, onCycleSeg, compact }: {
+  segmentosPorPadrao: Record<string, Set<number>>
+  onCycleSeg: (seg: number) => void
   compact?: boolean
 }) {
   const fontSize = compact ? 9 : 11
-  const activeLayers = new Set(PATTERN_LAYERS[pattern] || LAYERS)
+
+  // Map each segment to its current pattern
+  const segPattern = new Map<number, string>()
+  for (const [padrao, segs] of Object.entries(segmentosPorPadrao)) {
+    for (const seg of segs) segPattern.set(seg, padrao)
+  }
 
   return (
-    <svg viewBox={`0 0 ${BS} ${BS}`} className={compact ? 'w-full' : 'w-full max-w-[220px] mx-auto'}>
+    <svg viewBox={`0 0 ${BS} ${BS}`} className={compact ? 'w-full' : 'w-full max-w-[280px] mx-auto'}>
       {/* Sub-layer arcs — segments 1-16 */}
       {SUB_ARC_PATHS.map(slp => {
-        const on = selected.has(slp.segId) && activeLayers.has(slp.layer)
+        const pat = segPattern.get(slp.segId)
+        const active = pat ? new Set(PATTERN_LAYERS[pat] || []) : new Set<SubLayer>()
+        const on = active.has(slp.layer)
         return (
           <path key={`${slp.segId}-${slp.layer}`} d={slp.d}
-            fill={on ? accentColor : 'rgba(128,128,128,0.10)'}
-            stroke="rgba(128,128,128,0.20)" strokeWidth={0.5}
-            onClick={() => onToggle(slp.segId)}
+            fill={on ? ENH_COLOR : 'rgba(128,128,128,0.06)'}
+            stroke="rgba(128,128,128,0.15)" strokeWidth={0.5}
+            onClick={() => onCycleSeg(slp.segId)}
             style={{ cursor: 'pointer', transition: 'fill 0.15s' }}
           />
         )
@@ -639,49 +660,52 @@ function LayeredBullseye({ selected, onToggle, accentColor, pattern, compact }: 
       {/* Apex sub-layers — segment 17 */}
       {LAYERS.map(layer => {
         const { rO, rI } = SUB_APEX[layer]
-        const on = selected.has(17) && activeLayers.has(layer)
-        const fill = on ? accentColor : 'rgba(128,128,128,0.10)'
+        const pat = segPattern.get(17)
+        const active = pat ? new Set(PATTERN_LAYERS[pat] || []) : new Set<SubLayer>()
+        const on = active.has(layer)
+        const fill = on ? ENH_COLOR : 'rgba(128,128,128,0.06)'
         if (rI < 0.1) {
           return <circle key={`17-${layer}`} cx={BCX} cy={BCY} r={rO}
-            fill={fill} stroke="rgba(128,128,128,0.20)" strokeWidth={0.5}
-            onClick={() => onToggle(17)} style={{ cursor: 'pointer', transition: 'fill 0.15s' }} />
+            fill={fill} stroke="rgba(128,128,128,0.15)" strokeWidth={0.5}
+            onClick={() => onCycleSeg(17)} style={{ cursor: 'pointer', transition: 'fill 0.15s' }} />
         }
         const d = `M${(BCX-rO).toFixed(1)},${BCY} A${rO.toFixed(1)},${rO.toFixed(1)} 0 1 1 ${(BCX+rO).toFixed(1)},${BCY} A${rO.toFixed(1)},${rO.toFixed(1)} 0 1 1 ${(BCX-rO).toFixed(1)},${BCY} ` +
                   `M${(BCX-rI).toFixed(1)},${BCY} A${rI.toFixed(1)},${rI.toFixed(1)} 0 1 0 ${(BCX+rI).toFixed(1)},${BCY} A${rI.toFixed(1)},${rI.toFixed(1)} 0 1 0 ${(BCX-rI).toFixed(1)},${BCY}`
         return <path key={`17-${layer}`} d={d} fill={fill} fillRule="evenodd"
-          stroke="rgba(128,128,128,0.20)" strokeWidth={0.5}
-          onClick={() => onToggle(17)} style={{ cursor: 'pointer', transition: 'fill 0.15s' }} />
+          stroke="rgba(128,128,128,0.15)" strokeWidth={0.5}
+          onClick={() => onCycleSeg(17)} style={{ cursor: 'pointer', transition: 'fill 0.15s' }} />
       })}
 
-      {/* Ring borders (basal/mid/apical/apex dividers) */}
+      {/* Ring borders — thick */}
       {[R1, R2, R3, R4].map(r => (
         <circle key={`ring-${r}`} cx={BCX} cy={BCY} r={r}
-          fill="none" stroke="rgba(128,128,128,0.4)" strokeWidth={1}
+          fill="none" stroke="rgba(60,60,60,0.5)" strokeWidth={1.8}
+          style={{ pointerEvents: 'none' }} />
+      ))}
+
+      {/* Radial segment dividers — thick */}
+      {RADIAL_LINES.map((l, i) => (
+        <line key={`rad-${i}`} x1={l.x1} y1={l.y1} x2={l.x2} y2={l.y2}
+          stroke="rgba(60,60,60,0.5)" strokeWidth={1.8}
           style={{ pointerEvents: 'none' }} />
       ))}
 
       {/* Segment number labels */}
       {SEG_LABELS.map(seg => {
-        const isOn = selected.has(seg.id)
-        const labelOnColor = isOn && activeLayers.has('meso')
+        const pat = segPattern.get(seg.id)
+        const hasMeso = pat && (PATTERN_LAYERS[pat] || []).includes('meso')
         return (
           <text key={`l${seg.id}`} x={seg.lbl.x} y={seg.lbl.y}
             textAnchor="middle" dominantBaseline="central"
             fontSize={fontSize} fontWeight="bold"
-            fill={labelOnColor ? '#fff' : 'var(--text, #333)'}
-            stroke={isOn && !labelOnColor ? accentColor : 'none'}
-            strokeWidth={isOn && !labelOnColor ? 2.5 : 0}
-            paintOrder="stroke"
+            fill={hasMeso ? '#fff' : 'var(--text, #333)'}
             style={{ pointerEvents: 'none', userSelect: 'none' }}
           >{seg.id}</text>
         )
       })}
       <text x={BCX} y={BCY} textAnchor="middle" dominantBaseline="central"
         fontSize={fontSize} fontWeight="bold"
-        fill={selected.has(17) && activeLayers.has('meso') ? '#fff' : 'var(--text, #333)'}
-        stroke={selected.has(17) && !activeLayers.has('meso') ? accentColor : 'none'}
-        strokeWidth={selected.has(17) && !activeLayers.has('meso') ? 2.5 : 0}
-        paintOrder="stroke"
+        fill={segPattern.has(17) && (PATTERN_LAYERS[segPattern.get(17)!] || []).includes('meso') ? '#fff' : 'var(--text, #333)'}
         style={{ pointerEvents: 'none', userSelect: 'none' }}
       >17</text>
     </svg>
@@ -705,40 +729,44 @@ function DiseaseCard({ config, instance, onUpdate, onRemove }: {
     onUpdate({ extras: { ...instance.extras, [key]: value } })
   }
 
-  // Toggle a segment on a specific pattern's bullseye.
-  // Ensures mutual exclusion: removes from all other patterns first.
-  const toggleSegOnPadrao = (padrao: string, seg: number) => {
+  // Cycle a segment through patterns: click advances to next pattern, last click clears
+  const cycleSeg = (seg: number) => {
     const updated = { ...instance.segmentosPorPadrao }
-    // Deep clone all sets
-    for (const k of Object.keys(updated)) {
-      updated[k] = new Set(updated[k])
-    }
+    for (const k of Object.keys(updated)) updated[k] = new Set(updated[k])
 
-    if (updated[padrao].has(seg)) {
-      // Remove from this pattern
-      updated[padrao].delete(seg)
-    } else {
-      // Remove from all other patterns first (mutual exclusion)
-      for (const k of Object.keys(updated)) {
-        updated[k].delete(seg)
+    // Find which pattern this segment is currently in
+    let currentIdx = -1
+    for (let i = 0; i < config.padroes.length; i++) {
+      if (updated[config.padroes[i].value]?.has(seg)) {
+        currentIdx = i
+        break
       }
-      // Add to this pattern
-      updated[padrao].add(seg)
     }
+
+    // Remove from current pattern
+    if (currentIdx >= 0) updated[config.padroes[currentIdx].value].delete(seg)
+
+    // Add to next pattern (or clear if past last)
+    const nextIdx = currentIdx + 1
+    if (nextIdx < config.padroes.length) {
+      updated[config.padroes[nextIdx].value].add(seg)
+    }
+
     onUpdate({ segmentosPorPadrao: updated })
   }
 
-  const selectAllOnPadrao = (padrao: string) => {
+  const clearAll = () => {
     const updated = { ...instance.segmentosPorPadrao }
+    for (const k of Object.keys(updated)) updated[k] = new Set<number>()
+    onUpdate({ segmentosPorPadrao: updated })
+  }
+
+  const selectAllMax = () => {
+    const updated = { ...instance.segmentosPorPadrao }
+    const lastPadrao = config.padroes[config.padroes.length - 1].value
     for (const k of Object.keys(updated)) {
-      updated[k] = k === padrao ? new Set(ALL_17) : new Set<number>()
+      updated[k] = k === lastPadrao ? new Set(ALL_17) : new Set<number>()
     }
-    onUpdate({ segmentosPorPadrao: updated })
-  }
-
-  const clearPadrao = (padrao: string) => {
-    const updated = { ...instance.segmentosPorPadrao }
-    updated[padrao] = new Set<number>()
     onUpdate({ segmentosPorPadrao: updated })
   }
 
@@ -756,43 +784,40 @@ function DiseaseCard({ config, instance, onUpdate, onRemove }: {
       </div>
 
       <div className="px-4 pb-4 space-y-4 border-t" style={{ borderColor: config.cor + '22' }}>
-        {/* Bullseye grid (one per pattern) */}
+        {/* Single bullseye — click cycles through patterns */}
         {config.usaBullseye && (
           <div className="pt-3">
-            <label className="block text-xs font-semibold mb-3" style={{ color: 'var(--text3)' }}>
-              Segmentos Acometidos ({totalSegs}/17) — clique nos segmentos em cada padrão
+            <label className="block text-xs font-semibold mb-2" style={{ color: 'var(--text3)' }}>
+              Segmentos ({totalSegs}/17) — clique para alternar padrão
             </label>
-            <div className="grid grid-cols-2 gap-3">
+            <CycleBullseye
+              segmentosPorPadrao={instance.segmentosPorPadrao}
+              onCycleSeg={cycleSeg}
+            />
+            {/* Legend */}
+            <div className="flex flex-wrap gap-1.5 mt-2 justify-center">
               {config.padroes.map(p => {
-                const segs = instance.segmentosPorPadrao[p.value] || new Set<number>()
+                const count = instance.segmentosPorPadrao[p.value]?.size || 0
                 return (
-                  <div key={p.value} className="rounded-lg border p-2" style={{ borderColor: segs.size > 0 ? config.cor + '44' : 'var(--border)' }}>
-                    <div className="text-center mb-1">
-                      <span className="text-[11px] font-bold" style={{ color: segs.size > 0 ? config.cor : 'var(--text3)' }}>
-                        {p.label}
-                      </span>
-                      <span className="text-[10px] ml-1" style={{ color: 'var(--text3)' }}>({segs.size})</span>
-                    </div>
-                    <LayeredBullseye
-                      selected={segs}
-                      onToggle={seg => toggleSegOnPadrao(p.value, seg)}
-                      accentColor={config.cor}
-                      pattern={p.value}
-                      compact
-                    />
-                    <div className="flex justify-center gap-1 mt-1">
-                      <button type="button" onClick={() => selectAllOnPadrao(p.value)}
-                        className="text-[9px] px-2 py-0.5 rounded border"
-                        style={{ borderColor: 'var(--border)', color: 'var(--text3)' }}
-                      >Todos</button>
-                      <button type="button" onClick={() => clearPadrao(p.value)}
-                        className="text-[9px] px-2 py-0.5 rounded border"
-                        style={{ borderColor: 'var(--border)', color: 'var(--text3)' }}
-                      >Limpar</button>
-                    </div>
-                  </div>
+                  <span key={p.value} className="text-[10px] px-2 py-0.5 rounded border"
+                    style={{
+                      borderColor: count > 0 ? config.cor : 'var(--border)',
+                      color: count > 0 ? config.cor : 'var(--text3)',
+                      backgroundColor: count > 0 ? config.cor + '0A' : 'transparent',
+                    }}
+                  >{p.label} ({count})</span>
                 )
               })}
+            </div>
+            <div className="flex justify-center gap-2 mt-2">
+              <button type="button" onClick={selectAllMax}
+                className="text-[10px] px-3 py-1 rounded border"
+                style={{ borderColor: 'var(--border)', color: 'var(--text3)' }}
+              >Todos</button>
+              <button type="button" onClick={clearAll}
+                className="text-[10px] px-3 py-1 rounded border"
+                style={{ borderColor: 'var(--border)', color: 'var(--text3)' }}
+              >Limpar</button>
             </div>
           </div>
         )}
