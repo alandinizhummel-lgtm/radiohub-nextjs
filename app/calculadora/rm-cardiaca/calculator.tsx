@@ -21,7 +21,7 @@ import AnaliseMiocardio from './analise-miocardio'
 // ── Types ────────────────────────────────────────────────
 interface DiastoleRow { ve_endo: string; ve_epi: string; vd_endo: string; vd_epi: string }
 interface SystoleRow { ve_endo: string; vd_endo: string }
-interface ValveState { alterada: boolean; refluxo: string }
+interface ValveState { alterada: boolean; refluxo: string; estenose: boolean; grauEstenose: string }
 
 const emptyDias = (): DiastoleRow => ({ ve_endo: '', ve_epi: '', vd_endo: '', vd_epi: '' })
 const emptySist = (): SystoleRow => ({ ve_endo: '', vd_endo: '' })
@@ -157,10 +157,11 @@ export default function CardiacCalculator() {
   const [perfStress, setPerfStress] = useState(false)
 
   // ── Valves ──
-  const [valvaAortica, setValvaAortica] = useState<ValveState>({ alterada: false, refluxo: '' })
-  const [valvaMitral, setValvaMitral] = useState<ValveState>({ alterada: false, refluxo: '' })
-  const [valvaTricuspide, setValvaTricuspide] = useState<ValveState>({ alterada: false, refluxo: '' })
-  const [valvaPulmonar, setValvaPulmonar] = useState<ValveState>({ alterada: false, refluxo: '' })
+  const emptyValve = (): ValveState => ({ alterada: false, refluxo: '', estenose: false, grauEstenose: '' })
+  const [valvaAortica, setValvaAortica] = useState<ValveState>(emptyValve)
+  const [valvaMitral, setValvaMitral] = useState<ValveState>(emptyValve)
+  const [valvaTricuspide, setValvaTricuspide] = useState<ValveState>(emptyValve)
+  const [valvaPulmonar, setValvaPulmonar] = useState<ValveState>(emptyValve)
 
   // ── Pericardium ──
   const [pericardioNormal, setPericardioNormal] = useState(true)
@@ -344,29 +345,35 @@ export default function CardiacCalculator() {
   }, [perfStress])
 
   const textoValvas = useMemo(() => {
-    const valves = [
+    const allValves = [
       { nome: 'aórtica', ...valvaAortica },
       { nome: 'mitral', ...valvaMitral },
       { nome: 'tricúspide', ...valvaTricuspide },
       { nome: 'pulmonar', ...valvaPulmonar },
-    ].filter(v => v.alterada && v.refluxo)
+    ]
 
-    if (valves.length === 0) return 'Valvas cardíacas sem alterações evidentes ao método.'
+    const altered = allValves.filter(v => (v.alterada && v.refluxo) || (v.estenose && v.grauEstenose))
+    if (altered.length === 0) return 'Valvas cardíacas sem alterações evidentes ao método.'
 
-    const grades = new Set(valves.map(v => v.refluxo))
+    // Build per-valve description
+    const descriptions = altered.map(v => {
+      const parts: string[] = []
+      if (v.alterada && v.refluxo) parts.push(`refluxo ${v.refluxo}`)
+      if (v.estenose && v.grauEstenose) parts.push(`sinais de estenose ${v.grauEstenose}`)
+      return { nome: v.nome, desc: parts.join(' e ') }
+    })
+
     let texto: string
+    const allSameDesc = descriptions.every(d => d.desc === descriptions[0].desc)
 
-    if (grades.size === 1) {
-      const grade = valves[0].refluxo
-      if (valves.length === 1) {
-        texto = `Valva ${valves[0].nome} com refluxo ${grade}`
-      } else {
-        const names = valves.map(v => v.nome)
-        const last = names.pop()!
-        texto = `Valvas ${names.join(', ')} e ${last} com refluxo ${grade}`
-      }
+    if (descriptions.length === 1) {
+      texto = `Valva ${descriptions[0].nome} com ${descriptions[0].desc}`
+    } else if (allSameDesc) {
+      const names = descriptions.map(d => d.nome)
+      const last = names.pop()!
+      texto = `Valvas ${names.join(', ')} e ${last} com ${descriptions[0].desc}`
     } else {
-      const parts = valves.map(v => `valva ${v.nome} com refluxo ${v.refluxo}`)
+      const parts = descriptions.map(d => `valva ${d.nome} com ${d.desc}`)
       const last = parts.pop()!
       texto = parts.join(', ') + ' e ' + last
       texto = texto.charAt(0).toUpperCase() + texto.slice(1)
@@ -387,16 +394,37 @@ export default function CardiacCalculator() {
 
   const textoAortaPulmonar = useMemo(() => {
     if (!aortaAlterada) return 'Aorta torácica e tronco pulmonar com calibre normal.'
-    const b = aortaBulbo || '[  ]'
-    const a = aortaAscendente || '[  ]'
-    const c = aortaCrossa || '[  ]'
-    const d = aortaDescendente || '[  ]'
-    let texto = `Aorta torácica com trajeto, calibre e opacificação normais. Diâmetros de até ${b} cm no bulbo (VN ≤ 4,0 cm), ${a} cm na porção tubular ascendente (VN ≤ 4,0 cm), ${c} cm na porção média da crossa (VN ≤ 3,5 cm) e ${d} cm na porção média descendente (VN ≤ 3,0 cm).`
+
+    const segments = [
+      { value: aortaBulbo, label: 'bulbo aórtico' },
+      { value: aortaAscendente, label: 'porção tubular ascendente da aorta' },
+      { value: aortaCrossa, label: 'crossa aórtica' },
+      { value: aortaDescendente, label: 'aorta descendente' },
+    ].filter(s => s.value)
+
+    let texto = ''
+    if (segments.length > 0) {
+      const ectasias = segments.map(s => `ectasia do ${s.label}, medindo até ${s.value} cm`)
+      const first = ectasias.shift()!
+      texto = first.charAt(0).toUpperCase() + first.slice(1)
+      if (ectasias.length > 0) {
+        const last = ectasias.pop()!
+        texto += ectasias.length > 0 ? ', ' + ectasias.join(', ') + ' e ' + last : ' e ' + last
+      }
+      texto += '.'
+      if (segments.length < 4) {
+        texto += ' Demais segmentos da aorta torácica com trajeto e calibre preservados.'
+      }
+    } else {
+      texto = 'Aorta torácica com trajeto e calibre preservados.'
+    }
+
     if (troncoPulmonar) {
-      texto += `\nTronco da artéria pulmonar com diâmetro de ${troncoPulmonar} cm (VN ≤ 3,0 cm).`
+      texto += `\nEctasia do tronco da artéria pulmonar, medindo até ${troncoPulmonar} cm.`
     } else {
       texto += '\nTronco pulmonar com calibre normal.'
     }
+
     return texto
   }, [aortaAlterada, aortaBulbo, aortaAscendente, aortaCrossa, aortaDescendente, troncoPulmonar])
 
@@ -1271,6 +1299,7 @@ export default function CardiacCalculator() {
 
           {/* Valves */}
           <CollapsibleCard title="Valvas" defaultOpen={false}>
+            <label className="block text-xs font-semibold mb-2" style={{ color: 'var(--text3)' }}>Insuficiência (refluxo)</label>
             <div className="space-y-2">
               {([
                 { label: 'Aórtica', state: valvaAortica, setter: setValvaAortica },
@@ -1278,30 +1307,75 @@ export default function CardiacCalculator() {
                 { label: 'Tricúspide', state: valvaTricuspide, setter: setValvaTricuspide },
                 { label: 'Pulmonar', state: valvaPulmonar, setter: setValvaPulmonar },
               ] as { label: string; state: ValveState; setter: (v: ValveState) => void }[]).map(({ label, state, setter }) => (
-                <div key={label} className="flex items-center gap-3">
-                  <label className="flex items-center gap-2 cursor-pointer min-w-[130px]">
+                <div key={label} className="flex items-center gap-2 flex-wrap">
+                  <label className="flex items-center gap-2 cursor-pointer min-w-[120px]">
                     <input
                       type="checkbox"
                       checked={state.alterada}
-                      onChange={e => setter({ alterada: e.target.checked, refluxo: e.target.checked ? 'discreto' : '' })}
+                      onChange={e => setter({ ...state, alterada: e.target.checked, refluxo: e.target.checked ? 'discreto' : '' })}
                       className="w-4 h-4 accent-[var(--accent)]"
                     />
                     <span className="text-sm font-medium text-[var(--text)]">{label}</span>
                   </label>
                   {state.alterada && (
-                    <select
-                      className={`${selectCls} text-xs py-1.5 flex-1`}
-                      value={state.refluxo}
-                      onChange={e => setter({ ...state, refluxo: e.target.value })}
-                    >
-                      <option value="discreto">Refluxo discreto</option>
-                      <option value="moderado">Refluxo moderado</option>
-                      <option value="importante">Refluxo importante</option>
-                    </select>
+                    <div className="flex gap-1">
+                      {['discreto', 'moderado', 'importante'].map(g => (
+                        <button key={g} type="button"
+                          onClick={() => setter({ ...state, refluxo: g })}
+                          className="px-2.5 py-1 rounded-md text-[11px] font-semibold border transition-all"
+                          style={state.refluxo === g
+                            ? { backgroundColor: 'var(--accent)', borderColor: 'var(--accent)', color: '#fff' }
+                            : { backgroundColor: 'transparent', borderColor: 'var(--border)', color: 'var(--text3)' }
+                          }
+                        >{g}</button>
+                      ))}
+                    </div>
                   )}
                 </div>
               ))}
             </div>
+
+            {/* Estenose - expandable, always closed */}
+            <details className="mt-4 border-t border-[var(--border)] pt-3">
+              <summary className="text-xs font-semibold cursor-pointer hover:text-[var(--text2)] transition-colors" style={{ color: 'var(--text3)' }}>
+                Estenose (raro)
+              </summary>
+              <div className="mt-2 space-y-2 pl-2 border-l-2 border-[var(--border)]">
+                {([
+                  { label: 'Aórtica', state: valvaAortica, setter: setValvaAortica },
+                  { label: 'Mitral', state: valvaMitral, setter: setValvaMitral },
+                  { label: 'Tricúspide', state: valvaTricuspide, setter: setValvaTricuspide },
+                  { label: 'Pulmonar', state: valvaPulmonar, setter: setValvaPulmonar },
+                ] as { label: string; state: ValveState; setter: (v: ValveState) => void }[]).map(({ label, state, setter }) => (
+                  <div key={label} className="flex items-center gap-2 flex-wrap">
+                    <label className="flex items-center gap-2 cursor-pointer min-w-[120px]">
+                      <input
+                        type="checkbox"
+                        checked={state.estenose}
+                        onChange={e => setter({ ...state, estenose: e.target.checked, grauEstenose: e.target.checked ? 'leve' : '' })}
+                        className="w-4 h-4 accent-[var(--accent)]"
+                      />
+                      <span className="text-sm font-medium text-[var(--text)]">{label}</span>
+                    </label>
+                    {state.estenose && (
+                      <div className="flex gap-1">
+                        {['leve', 'moderada', 'importante'].map(g => (
+                          <button key={g} type="button"
+                            onClick={() => setter({ ...state, grauEstenose: g })}
+                            className="px-2.5 py-1 rounded-md text-[11px] font-semibold border transition-all"
+                            style={state.grauEstenose === g
+                              ? { backgroundColor: 'var(--accent)', borderColor: 'var(--accent)', color: '#fff' }
+                              : { backgroundColor: 'transparent', borderColor: 'var(--border)', color: 'var(--text3)' }
+                            }
+                          >{g}</button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </details>
+
             <div className="mt-3 rounded-lg p-3 text-xs leading-relaxed border" style={{ backgroundColor: 'var(--bg2, var(--surface2))', borderColor: 'var(--border)', color: 'var(--text2)' }}>
               <span className="font-bold text-[10px] uppercase tracking-wider block mb-1" style={{ color: 'var(--accent)' }}>Texto gerado:</span>
               {textoValvas}

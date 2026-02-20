@@ -24,7 +24,6 @@ const CALCULADORAS_POR_SPEC: Record<string, Array<{nome: string, descricao: stri
     { nome: 'PESI Score', descricao: 'Gravidade de embolia pulmonar', link: '/calculadora/pesi' },
   ],
   cardio: [
-    { nome: 'Gerador de Laudo · RM Cardíaca', descricao: 'Volumes, FE, massa, ECV, gerador de laudo assistido', link: '/calculadora/rm-cardiaca' },
     { nome: 'CAD-RADS', descricao: 'Classificação de estenose coronariana na TC', link: '/calculadora/cad-rads' },
   ],
   gi: [
@@ -71,7 +70,7 @@ const CALCULADORAS_POR_SPEC: Record<string, Array<{nome: string, descricao: stri
   ],
 }
 
-const GERADORES_POR_SPEC: Record<string, Array<{nome: string, descricao: string}>> = {
+const GERADORES_POR_SPEC: Record<string, Array<{nome: string, descricao: string, link?: string}>> = {
   neuro: [
     { nome: 'RM Encéfalo', descricao: 'Gerador de laudo de RM de crânio' },
     { nome: 'TC Crânio', descricao: 'Gerador de laudo de TC de crânio' }
@@ -81,6 +80,7 @@ const GERADORES_POR_SPEC: Record<string, Array<{nome: string, descricao: string}
     { nome: 'TC Seios da Face', descricao: 'Gerador de laudo de TC de seios paranasais' }
   ],
   cardio: [
+    { nome: 'RM Cardíaca', descricao: 'Volumes, FE, massa, ECV, gerador de laudo assistido', link: '/calculadora/rm-cardiaca' },
     { nome: 'AngioTC Coronárias', descricao: 'Gerador de laudo de coronário TC' },
     { nome: 'AngioTC Aorta', descricao: 'Gerador de laudo de aorta' }
   ],
@@ -523,7 +523,12 @@ export default function Home() {
               {GERADORES_POR_SPEC[currentSpec]?.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {GERADORES_POR_SPEC[currentSpec].map((ger, index) => (
-                    <div key={index} className="bg-surface border border-border rounded-xl p-4 sm:p-6 hover:border-accent/50 hover:shadow-lg transition-all group">
+                    <div
+                      key={index}
+                      className={`bg-surface border border-border rounded-xl p-4 sm:p-6 hover:border-accent/50 hover:shadow-lg transition-all group ${ger.link ? 'cursor-pointer' : ''}`}
+                      onClick={() => ger.link && window.open(ger.link, '_self')}
+                      role={ger.link ? 'link' : undefined}
+                    >
                       <div className="flex items-start gap-3 mb-4">
                         <div className="text-2xl sm:text-3xl" aria-hidden="true">⚙️</div>
                         <div>
@@ -531,9 +536,15 @@ export default function Home() {
                           <p className="text-xs sm:text-sm text-text3">{ger.descricao}</p>
                         </div>
                       </div>
-                      <div className="px-4 py-2 bg-surface2 text-text3 rounded-lg text-sm text-center">
-                        Em desenvolvimento
-                      </div>
+                      {ger.link ? (
+                        <div className="px-4 py-2 bg-accent/10 text-accent rounded-lg text-sm text-center font-semibold">
+                          Abrir Gerador
+                        </div>
+                      ) : (
+                        <div className="px-4 py-2 bg-surface2 text-text3 rounded-lg text-sm text-center">
+                          Em desenvolvimento
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
