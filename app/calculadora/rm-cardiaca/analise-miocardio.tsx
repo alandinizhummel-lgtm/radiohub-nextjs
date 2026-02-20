@@ -41,6 +41,14 @@ function listarSegmentos(segs: Set<number>): string {
 // Disease Configuration
 // ══════════════════════════════════════════════════════════
 
+interface DiseaseOption {
+  key: string
+  tipo: 'toggle' | 'select' | 'number'
+  label: string
+  opcoes?: { value: string; label: string }[]
+  defaultValue?: string | boolean | number
+}
+
 interface DiseaseConfig {
   id: string
   nome: string
@@ -53,6 +61,7 @@ interface DiseaseConfig {
   territorios?: { value: string; label: string }[]
   isquemico: boolean
   sufixoTexto?: string // appended after segment list
+  opcoes?: DiseaseOption[]
 }
 
 const DISEASE_CONFIGS: DiseaseConfig[] = [
@@ -71,6 +80,26 @@ const DISEASE_CONFIGS: DiseaseConfig[] = [
     temMassa: true,
     temTerritorio: false,
     isquemico: false,
+    opcoes: [
+      {
+        key: 'intensidade', tipo: 'select', label: 'Intensidade',
+        opcoes: [
+          { value: 'tenues', label: 'Tênues' },
+          { value: 'discretos', label: 'Discretos' },
+          { value: 'extensos', label: 'Extensos' },
+        ],
+        defaultValue: 'discretos',
+      },
+      {
+        key: 'fase', tipo: 'select', label: 'Fase',
+        opcoes: [
+          { value: 'aguda', label: 'Aguda' },
+          { value: 'cronica', label: 'Crônica' },
+          { value: 'indeterminada', label: 'Indeterminada' },
+        ],
+        defaultValue: 'aguda',
+      },
+    ],
   },
   {
     id: 'infarto',
@@ -90,6 +119,25 @@ const DISEASE_CONFIGS: DiseaseConfig[] = [
       { value: 'CD', label: 'CD (Coronária Direita)' },
     ],
     isquemico: true,
+    opcoes: [
+      {
+        key: 'viabilidade', tipo: 'select', label: 'Viabilidade',
+        opcoes: [
+          { value: 'com', label: 'Com viabilidade' },
+          { value: 'sem', label: 'Sem viabilidade' },
+        ],
+        defaultValue: 'com',
+      },
+      {
+        key: 'contratilidade', tipo: 'select', label: 'Contratilidade',
+        opcoes: [
+          { value: 'acinesia', label: 'Acinesia' },
+          { value: 'hipocinesia', label: 'Hipocinesia' },
+        ],
+        defaultValue: 'acinesia',
+      },
+      { key: 'afilamento', tipo: 'toggle', label: 'Afilamento parietal', defaultValue: false },
+    ],
   },
   {
     id: 'amiloidose',
@@ -104,6 +152,10 @@ const DISEASE_CONFIGS: DiseaseConfig[] = [
     temMassa: false,
     temTerritorio: false,
     isquemico: false,
+    opcoes: [
+      { key: 'ti_alterado', tipo: 'toggle', label: 'Alteração TI Scout', defaultValue: false },
+      { key: 'disfuncao_diastolica', tipo: 'toggle', label: 'Disfunção diastólica', defaultValue: false },
+    ],
   },
   {
     id: 'hcm',
@@ -119,6 +171,20 @@ const DISEASE_CONFIGS: DiseaseConfig[] = [
     temTerritorio: false,
     isquemico: false,
     sufixoTexto: ', compatível com fibrose em contexto de cardiomiopatia hipertrófica',
+    opcoes: [
+      {
+        key: 'tipo_hcm', tipo: 'select', label: 'Tipo',
+        opcoes: [
+          { value: 'assimetrica_septal', label: 'Assimétrica septal' },
+          { value: 'apical', label: 'Apical (Yamaguchi)' },
+          { value: 'concentrica', label: 'Concêntrica' },
+        ],
+        defaultValue: 'assimetrica_septal',
+      },
+      { key: 'obstrucao_vsve', tipo: 'toggle', label: 'Obstrução da VSVE', defaultValue: false },
+      { key: 'sam', tipo: 'toggle', label: 'SAM', defaultValue: false },
+      { key: 'espessura_max', tipo: 'number', label: 'Espessura máxima (cm)' },
+    ],
   },
   {
     id: 'sarcoidose',
@@ -136,6 +202,31 @@ const DISEASE_CONFIGS: DiseaseConfig[] = [
     temTerritorio: false,
     isquemico: false,
     sufixoTexto: ', compatível com acometimento por sarcoidose',
+    opcoes: [
+      { key: 'dist_conducao', tipo: 'toggle', label: 'Distúrbio de condução', defaultValue: false },
+      { key: 'deposito_gordura', tipo: 'toggle', label: 'Depósito gorduroso', defaultValue: false },
+    ],
+  },
+  {
+    id: 'stress_positivo',
+    nome: 'Stress Positivo',
+    cor: '#ec4899',
+    padroes: [
+      { value: 'isquemia', label: 'Isquemia' },
+    ],
+    usaBullseye: true,
+    temEdema: false,
+    temMassa: false,
+    temTerritorio: true,
+    territorios: [
+      { value: 'DA', label: 'DA (Descendente Anterior)' },
+      { value: 'Cx', label: 'Cx (Circunflexa)' },
+      { value: 'CD', label: 'CD (Coronária Direita)' },
+    ],
+    isquemico: true,
+    opcoes: [
+      { key: 'carga_isquemica', tipo: 'number', label: 'Carga isquêmica (%)' },
+    ],
   },
 ]
 
@@ -153,6 +244,7 @@ interface DiseaseInstance {
   massaPct: string
   territorio: string
   padrao: string // for diseases without bullseye (e.g. amiloidose)
+  extras: Record<string, string | boolean | number>
 }
 
 function createInstance(diseaseId: string, nextId: number): DiseaseInstance {
@@ -163,6 +255,21 @@ function createInstance(diseaseId: string, nextId: number): DiseaseInstance {
       segmentosPorPadrao[p.value] = new Set<number>()
     }
   }
+  const extras: Record<string, string | boolean | number> = {}
+  if (cfg.opcoes) {
+    for (const opt of cfg.opcoes) {
+      if (opt.defaultValue !== undefined) {
+        extras[opt.key] = opt.defaultValue
+      } else if (opt.tipo === 'toggle') {
+        extras[opt.key] = false
+      } else if (opt.tipo === 'number') {
+        extras[opt.key] = ''
+      } else if (opt.tipo === 'select' && opt.opcoes?.length) {
+        extras[opt.key] = opt.opcoes[0].value
+      }
+    }
+  }
+
   return {
     instanceId: nextId,
     diseaseId,
@@ -172,6 +279,7 @@ function createInstance(diseaseId: string, nextId: number): DiseaseInstance {
     massaPct: '',
     territorio: cfg.territorios?.[0]?.value || '',
     padrao: cfg.padroes[0]?.value || '',
+    extras,
   }
 }
 
@@ -188,6 +296,7 @@ const PADRAO_LABELS: Record<string, string> = {
   difuso_subendocardico: 'difuso subendocárdico',
   difuso_transmural: 'transmural difuso',
   multifocal: 'multifocal',
+  isquemia: 'isquemia',
 }
 
 const TERRITORIO_LABELS: Record<string, string> = {
@@ -198,12 +307,16 @@ const TERRITORIO_LABELS: Record<string, string> = {
 
 function gerarTextoInstancia(inst: DiseaseInstance): string {
   const cfg = DISEASE_CONFIGS.find(c => c.id === inst.diseaseId)!
+  const ex = inst.extras || {}
 
   // Amiloidose: no bullseye, just pattern
   if (!cfg.usaBullseye) {
     const padrao = PADRAO_LABELS[inst.padrao] || inst.padrao
     if (cfg.id === 'amiloidose') {
-      return `Realce tardio ${padrao} sugestivo de depósito amiloide;`
+      const parts = [`Realce tardio ${padrao} sugestivo de depósito amiloide`]
+      if (ex.ti_alterado) parts.push('Alteração do TI Scout sugestiva de depósito amiloide')
+      if (ex.disfuncao_diastolica) parts.push('Sinais de disfunção diastólica')
+      return parts.join('. ') + ';'
     }
     return ''
   }
@@ -215,6 +328,19 @@ function gerarTextoInstancia(inst: DiseaseInstance): string {
 
   if (padroesAtivos.length === 0) return ''
 
+  // Stress Positivo: special text
+  if (cfg.id === 'stress_positivo') {
+    const allSegs = new Set<number>()
+    for (const p of padroesAtivos) for (const s of p.segs) allSegs.add(s)
+    const carga = ex.carga_isquemica ? String(ex.carga_isquemica) : '?'
+    let texto = `Sinais de isquemia induzida por estresse nos ${listarSegmentos(allSegs)}`
+    if (cfg.temTerritorio && inst.territorio) {
+      texto += `, em território da artéria ${TERRITORIO_LABELS[inst.territorio] || inst.territorio}`
+    }
+    texto += `. Carga isquêmica estimada em ${carga}%.`
+    return texto
+  }
+
   const tipoStr = cfg.isquemico ? 'padrão isquêmico' : 'padrão não isquêmico'
 
   // Helper massa
@@ -225,15 +351,79 @@ function gerarTextoInstancia(inst: DiseaseInstance): string {
 
   let texto: string
 
-  if (padroesAtivos.length === 1) {
-    // Single pattern
-    const p = padroesAtivos[0]
-    texto = `Foco de realce tardio ${p.label} (${tipoStr}) nos ${listarSegmentos(p.segs)}`
+  // Infarto: include contratilidade and afilamento
+  if (cfg.id === 'infarto') {
+    const allSegs = new Set<number>()
+    for (const p of padroesAtivos) for (const s of p.segs) allSegs.add(s)
+    const contrat = ex.contratilidade === 'hipocinesia' ? 'hipocinesia' : 'acinesia'
+    const afilamento = ex.afilamento ? 'Afilamento parietal, ' : ''
+    if (padroesAtivos.length === 1) {
+      const p = padroesAtivos[0]
+      texto = `${afilamento}${contrat.charAt(0).toUpperCase() + contrat.slice(1)} e realce tardio ${p.label} (${tipoStr}) nos ${listarSegmentos(p.segs)}`
+    } else {
+      const partes = padroesAtivos.map(p => `${p.label} nos ${listarSegmentos(p.segs)}`)
+      const last = partes.pop()!
+      texto = `${afilamento}${contrat.charAt(0).toUpperCase() + contrat.slice(1)} e realce tardio (${tipoStr}): ${partes.join(', ')}, e ${last}`
+    }
+  } else if (cfg.id === 'miocardite') {
+    // Miocardite: include intensidade
+    const intensidadeMap: Record<string, string> = { tenues: 'Tênues', discretos: 'Discretos', extensos: 'Extensos' }
+    const intLabel = intensidadeMap[String(ex.intensidade)] || 'Discretos'
+    if (padroesAtivos.length === 1) {
+      const p = padroesAtivos[0]
+      texto = `${intLabel} focos de realce tardio ${p.label} (${tipoStr}) nos ${listarSegmentos(p.segs)}`
+    } else {
+      const partes = padroesAtivos.map(p => `${p.label} nos ${listarSegmentos(p.segs)}`)
+      const last = partes.pop()!
+      texto = `${intLabel} focos de realce tardio (${tipoStr}): ${partes.join(', ')}, e ${last}`
+    }
+  } else if (cfg.id === 'hcm') {
+    // HCM: include tipo, espessura máxima, obstrução VSVE, SAM
+    const tipoHcmMap: Record<string, string> = {
+      assimetrica_septal: 'assimétrica septal',
+      apical: 'apical (Yamaguchi)',
+      concentrica: 'concêntrica',
+    }
+    const tipoHcm = tipoHcmMap[String(ex.tipo_hcm)] || 'assimétrica septal'
+    const hcmParts: string[] = []
+    if (ex.espessura_max) hcmParts.push(`espessura máxima de ${ex.espessura_max} cm`)
+    if (ex.obstrucao_vsve) hcmParts.push('obstrução da VSVE')
+    if (ex.sam) hcmParts.push('SAM (movimento anterior sistólico)')
+    const hcmExtra = hcmParts.length > 0 ? `. ${hcmParts.join('. ')}.` : ''
+
+    if (padroesAtivos.length === 1) {
+      const p = padroesAtivos[0]
+      texto = `Hipertrofia ${tipoHcm} com realce tardio ${p.label} (${tipoStr}) nos ${listarSegmentos(p.segs)}`
+    } else {
+      const partes = padroesAtivos.map(p => `${p.label} nos ${listarSegmentos(p.segs)}`)
+      const last = partes.pop()!
+      texto = `Hipertrofia ${tipoHcm} com realce tardio (${tipoStr}): ${partes.join(', ')}, e ${last}`
+    }
+    texto += hcmExtra
+  } else if (cfg.id === 'sarcoidose') {
+    // Sarcoidose: include distúrbio de condução and depósito gorduroso
+    if (padroesAtivos.length === 1) {
+      const p = padroesAtivos[0]
+      texto = `Foco de realce tardio ${p.label} (${tipoStr}) nos ${listarSegmentos(p.segs)}`
+    } else {
+      const partes = padroesAtivos.map(p => `${p.label} nos ${listarSegmentos(p.segs)}`)
+      const last = partes.pop()!
+      texto = `Focos de realce tardio (${tipoStr}): ${partes.join(', ')}, e ${last}`
+    }
+    const sarcParts: string[] = []
+    if (ex.dist_conducao) sarcParts.push('Distúrbio de condução associado')
+    if (ex.deposito_gordura) sarcParts.push('Depósito gorduroso miocárdico')
+    if (sarcParts.length > 0) texto += `. ${sarcParts.join('. ')}`
   } else {
-    // Multiple patterns
-    const partes = padroesAtivos.map(p => `${p.label} nos ${listarSegmentos(p.segs)}`)
-    const last = partes.pop()!
-    texto = `Focos de realce tardio (${tipoStr}): ${partes.join(', ')}, e ${last}`
+    // Generic (fallback)
+    if (padroesAtivos.length === 1) {
+      const p = padroesAtivos[0]
+      texto = `Foco de realce tardio ${p.label} (${tipoStr}) nos ${listarSegmentos(p.segs)}`
+    } else {
+      const partes = padroesAtivos.map(p => `${p.label} nos ${listarSegmentos(p.segs)}`)
+      const last = partes.pop()!
+      texto = `Focos de realce tardio (${tipoStr}): ${partes.join(', ')}, e ${last}`
+    }
   }
 
   // Território (infarto)
@@ -255,6 +445,61 @@ function gerarTextoInstancia(inst: DiseaseInstance): string {
   texto += massaSuffix
 
   return texto + ';'
+}
+
+// ══════════════════════════════════════════════════════════
+// Conclusion Generation
+// ══════════════════════════════════════════════════════════
+
+function gerarConclusaoInstancia(inst: DiseaseInstance): string {
+  const cfg = DISEASE_CONFIGS.find(c => c.id === inst.diseaseId)!
+  const ex = inst.extras || {}
+
+  // Get all selected segments across patterns
+  const allSegs = new Set<number>()
+  if (cfg.usaBullseye) {
+    for (const segs of Object.values(inst.segmentosPorPadrao)) {
+      for (const s of segs) allSegs.add(s)
+    }
+  }
+
+  switch (cfg.id) {
+    case 'infarto': {
+      if (!cfg.usaBullseye || allSegs.size === 0) return ''
+      const viab = ex.viabilidade === 'sem' ? 'sem' : 'com'
+      const massaPct = inst.massaPct ? ` Envolvimento estimado em ${inst.massaPct}%.` : ''
+      return `Sinais de infarto pregresso do miocárdio ${viab} viabilidade nos ${listarSegmentos(allSegs)}.${massaPct}`
+    }
+    case 'miocardite': {
+      if (!cfg.usaBullseye || allSegs.size === 0) return ''
+      const fase = String(ex.fase || 'aguda')
+      if (fase === 'aguda') return 'Alterações compatíveis com miocardite aguda.'
+      return 'Alterações que comportam miocardite nos diferenciais.'
+    }
+    case 'amiloidose': {
+      return 'Os achados comportam nos diferenciais a possibilidade de amiloidose cardíaca.'
+    }
+    case 'hcm': {
+      const tipoHcmMap: Record<string, string> = {
+        assimetrica_septal: 'assimétrica septal',
+        apical: 'apical (Yamaguchi)',
+        concentrica: 'concêntrica',
+      }
+      const tipoHcm = tipoHcmMap[String(ex.tipo_hcm)] || 'assimétrica septal'
+      const vsve = ex.obstrucao_vsve ? 'com' : 'sem'
+      return `Cardiomiopatia hipertrófica ${tipoHcm}, ${vsve} estenose da VSVE.`
+    }
+    case 'sarcoidose': {
+      return 'O diagnóstico diferencial inclui sarcoidose.'
+    }
+    case 'stress_positivo': {
+      if (allSegs.size === 0) return ''
+      const carga = ex.carga_isquemica ? String(ex.carga_isquemica) : '?'
+      return `Perfusão com sinais de isquemia nos ${listarSegmentos(allSegs)}. Carga isquêmica ${carga}%.`
+    }
+    default:
+      return ''
+  }
 }
 
 // ══════════════════════════════════════════════════════════
@@ -357,6 +602,11 @@ function DiseaseCard({ config, instance, onUpdate, onRemove }: {
   onRemove: () => void
 }) {
   const texto = gerarTextoInstancia(instance)
+  const conclusao = gerarConclusaoInstancia(instance)
+
+  const updateExtra = (key: string, value: string | boolean | number) => {
+    onUpdate({ extras: { ...instance.extras, [key]: value } })
+  }
 
   // Toggle a segment on a specific pattern's bullseye.
   // Ensures mutual exclusion: removes from all other patterns first.
@@ -530,6 +780,63 @@ function DiseaseCard({ config, instance, onUpdate, onRemove }: {
           </div>
         )}
 
+        {/* Disease-specific options */}
+        {config.opcoes && config.opcoes.length > 0 && (
+          <div className="space-y-3">
+            {config.opcoes.map(opt => {
+              if (opt.tipo === 'select' && opt.opcoes) {
+                return (
+                  <div key={opt.key}>
+                    <label className="block text-xs font-semibold mb-2" style={{ color: 'var(--text3)' }}>{opt.label}</label>
+                    <div className="flex flex-wrap gap-1.5">
+                      {opt.opcoes.map(o => (
+                        <button key={o.value} type="button"
+                          onClick={() => updateExtra(opt.key, o.value)}
+                          className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border"
+                          style={instance.extras[opt.key] === o.value
+                            ? { backgroundColor: config.cor + '22', borderColor: config.cor, color: config.cor }
+                            : { backgroundColor: 'transparent', borderColor: 'var(--border)', color: 'var(--text3)' }
+                          }
+                        >{o.label}</button>
+                      ))}
+                    </div>
+                  </div>
+                )
+              }
+              if (opt.tipo === 'toggle') {
+                const isOn = !!instance.extras[opt.key]
+                return (
+                  <div key={opt.key}>
+                    <button type="button"
+                      onClick={() => updateExtra(opt.key, !isOn)}
+                      className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border"
+                      style={isOn
+                        ? { backgroundColor: config.cor + '22', borderColor: config.cor, color: config.cor }
+                        : { backgroundColor: 'transparent', borderColor: 'var(--border)', color: 'var(--text3)' }
+                      }
+                    >{opt.label}</button>
+                  </div>
+                )
+              }
+              if (opt.tipo === 'number') {
+                return (
+                  <div key={opt.key}>
+                    <label className="block text-xs font-semibold mb-1" style={{ color: 'var(--text3)' }}>{opt.label}</label>
+                    <input type="number" step="0.1"
+                      value={instance.extras[opt.key] as string | number ?? ''}
+                      onChange={e => updateExtra(opt.key, e.target.value)}
+                      placeholder="—"
+                      className="w-full max-w-[160px] px-3 py-1.5 rounded-lg text-sm border font-mono"
+                      style={{ backgroundColor: 'var(--bg2, var(--surface2))', borderColor: 'var(--border)', color: 'var(--text)' }}
+                    />
+                  </div>
+                )
+              }
+              return null
+            })}
+          </div>
+        )}
+
         {/* Generated text preview */}
         {texto && (
           <div className="rounded-lg p-3 text-xs leading-relaxed border"
@@ -539,6 +846,18 @@ function DiseaseCard({ config, instance, onUpdate, onRemove }: {
               Texto gerado:
             </span>
             {texto}
+          </div>
+        )}
+
+        {/* Conclusion preview */}
+        {conclusao && (
+          <div className="rounded-lg p-3 text-xs leading-relaxed border"
+            style={{ backgroundColor: config.cor + '08', borderColor: config.cor + '22', color: 'var(--text2)' }}
+          >
+            <span className="font-bold text-[10px] uppercase tracking-wider block mb-1" style={{ color: config.cor }}>
+              Conclusão:
+            </span>
+            {conclusao}
           </div>
         )}
 
@@ -556,26 +875,34 @@ function DiseaseCard({ config, instance, onUpdate, onRemove }: {
 // Main Component
 // ══════════════════════════════════════════════════════════
 
-export default function AnaliseMiocardio({ onTextChange }: { onTextChange: (text: string) => void }) {
+export default function AnaliseMiocardio({ onTextChange, onConclusionChange }: {
+  onTextChange: (text: string) => void
+  onConclusionChange?: (text: string) => void
+}) {
   const [instances, setInstances] = useState<DiseaseInstance[]>([])
   const [nextId, setNextId] = useState(1)
 
-  // Generate combined text and notify parent
+  // Generate combined text and conclusion, notify parent
   useEffect(() => {
-    const parts: string[] = []
+    const analysisParts: string[] = []
+    const conclusionParts: string[] = []
     for (const inst of instances) {
       const texto = gerarTextoInstancia(inst)
-      if (texto) parts.push(texto)
+      if (texto) analysisParts.push(texto)
+      const concl = gerarConclusaoInstancia(inst)
+      if (concl) conclusionParts.push(concl)
     }
 
-    if (parts.length === 0) {
+    if (analysisParts.length === 0) {
       onTextChange(
         'Miocárdio ventricular esquerdo com espessura e sinal preservados.\nNão se identifica realce tardio miocárdico.'
       )
     } else {
-      onTextChange(parts.join('\n'))
+      onTextChange(analysisParts.join('\n'))
     }
-  }, [instances, onTextChange])
+
+    onConclusionChange?.(conclusionParts.join('\n'))
+  }, [instances, onTextChange, onConclusionChange])
 
   const addDisease = (diseaseId: string) => {
     setInstances(prev => [...prev, createInstance(diseaseId, nextId)])

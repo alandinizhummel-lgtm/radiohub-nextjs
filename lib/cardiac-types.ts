@@ -87,6 +87,7 @@ export const TEMPLATE_BLOCKS: Record<string, string> = {
   '#perfusao': 'Perfusao miocardica (normal: sem sinais de isquemia)',
   '#realcetardio': 'Realce tardio miocardico (normal: ausente)',
   '#anmiocardio': 'Analise do miocardio (doencas e alteracoes de realce tardio)',
+  '#conclusaomiocardio': 'Conclusao automatica do miocardio (gerada a partir das doencas selecionadas)',
   '#valvas': 'Valvas cardiacas (normal: sem alteracoes)',
   '#pericardio': 'Pericardio (normal: sem espessamento/derrame)',
   '#aortaepulmonar': 'Aorta toracica e tronco pulmonar (normal: calibre normal)',

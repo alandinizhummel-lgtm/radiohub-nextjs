@@ -151,7 +151,9 @@ export default function CardiacCalculator() {
 
   // ── Myocardium analysis ──
   const [anMiocardioText, setAnMiocardioText] = useState('Miocárdio ventricular esquerdo com espessura e sinal preservados.\nNão se identifica realce tardio miocárdico.')
+  const [anMiocardioConclusion, setAnMiocardioConclusion] = useState('')
   const handleMiocardioChange = useCallback((text: string) => setAnMiocardioText(text), [])
+  const handleMiocardioConclChange = useCallback((text: string) => setAnMiocardioConclusion(text), [])
 
   // ── Technique ──
   const [comContraste, setComContraste] = useState(true)
@@ -693,10 +695,18 @@ export default function CardiacCalculator() {
         else { linhas.push(txVD()); linhas.push(txVE()) }
       }
 
-      // ECV
+      // ECV + Myocardium conclusion
       const ecvAlt = ecvClassif && ecvClassif !== 'normal'
       const temMapas = !!(t1MioPre || t2Nativo)
-      if (!ecvAlt && !temMapas) {
+      if (anMiocardioConclusion) {
+        // Disease-specific conclusions from AnaliseMiocardio
+        for (const line of anMiocardioConclusion.split('\n')) {
+          if (line.trim()) linhas.push(line.trim())
+        }
+        if (ecvAlt) {
+          linhas.push('Volume extracelular miocárdico aumentado em grau ' + ecvClassif + '.')
+        }
+      } else if (!ecvAlt && !temMapas) {
         linhas.push('Não se identifica realce tardio, edema, alteração do T1 nativo ou do volume extracelular miocárdicos.')
       } else if (ecvAlt) {
         linhas.push('Volume extracelular miocárdico aumentado em grau ' + ecvClassif + '.')
@@ -726,6 +736,7 @@ export default function CardiacCalculator() {
       '#perfusao': () => textoPerfusao,
       '#realcetardio': () => 'Não se identifica realce tardio miocárdico.',
       '#anmiocardio': () => anMiocardioText,
+      '#conclusaomiocardio': () => anMiocardioConclusion || 'Não se identifica realce tardio miocárdico.',
       '#valvas': () => textoValvas,
       '#pericardio': () => textoPericardio,
       '#aortaepulmonar': () => textoAortaPulmonar,
@@ -853,7 +864,7 @@ export default function CardiacCalculator() {
         return '<p style="margin:0;line-height:1.5;font-weight:bold">' + t + '</p>'
       return '<p style="margin:0;line-height:1.5">' + t + '</p>'
     }).join('')
-  }, [sexo, asc, veResults, vdResults, aeResults, adResults, ecvResults, ecvClassif, cl, fmt, mascara, veDdf, veEspSepto, veEspInferior, aeDiamAp, t1MioPre, t1SanguePre, t1MioPos, t1SanguePos, t2Nativo, t2Estrela, campoMag, tipoRef, volumeDiff, firestoreMasks, anMiocardioText, textoPerfusao, textoMetodo, textoValvas, textoPericardio, textoAortaPulmonar])
+  }, [sexo, asc, veResults, vdResults, aeResults, adResults, ecvResults, ecvClassif, cl, fmt, mascara, veDdf, veEspSepto, veEspInferior, aeDiamAp, t1MioPre, t1SanguePre, t1MioPos, t1SanguePos, t2Nativo, t2Estrela, campoMag, tipoRef, volumeDiff, firestoreMasks, anMiocardioText, anMiocardioConclusion, textoPerfusao, textoMetodo, textoValvas, textoPericardio, textoAortaPulmonar])
 
   // ── Report actions ──
   const copiarLaudo = async () => {
@@ -1338,7 +1349,7 @@ export default function CardiacCalculator() {
           </CollapsibleCard>
 
           <CollapsibleCard title="Análise do Miocárdio" icon="🫀" defaultOpen={false}>
-            <AnaliseMiocardio onTextChange={handleMiocardioChange} />
+            <AnaliseMiocardio onTextChange={handleMiocardioChange} onConclusionChange={handleMiocardioConclChange} />
           </CollapsibleCard>
 
           {/* Perfusion */}
