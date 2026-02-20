@@ -503,7 +503,7 @@ function gerarConclusaoInstancia(inst: DiseaseInstance): string {
 }
 
 // ══════════════════════════════════════════════════════════
-// Bullseye SVG Component (compact version)
+// Bullseye SVG — Geometry helpers
 // ══════════════════════════════════════════════════════════
 
 function polar(cx: number, cy: number, r: number, deg: number) {
@@ -524,67 +524,164 @@ function midPt(cx: number, cy: number, rO: number, rI: number, s: number, e: num
   return polar(cx, cy, (rO + rI) / 2, (s + e) / 2)
 }
 
-// Pre-compute segment geometry (shared across all Bullseye instances)
 const BS = 200
 const BCX = BS / 2, BCY = BS / 2
 const R1 = 92, R2 = 69, R3 = 48, R4 = 26
 
-const SEG_PATHS = [
-  // Basal
-  { id: 1, d: arcPath(BCX, BCY, R1, R2, -30, 30), lbl: midPt(BCX, BCY, R1, R2, -30, 30) },
-  { id: 6, d: arcPath(BCX, BCY, R1, R2, 30, 90), lbl: midPt(BCX, BCY, R1, R2, 30, 90) },
-  { id: 5, d: arcPath(BCX, BCY, R1, R2, 90, 150), lbl: midPt(BCX, BCY, R1, R2, 90, 150) },
-  { id: 4, d: arcPath(BCX, BCY, R1, R2, 150, 210), lbl: midPt(BCX, BCY, R1, R2, 150, 210) },
-  { id: 3, d: arcPath(BCX, BCY, R1, R2, 210, 270), lbl: midPt(BCX, BCY, R1, R2, 210, 270) },
-  { id: 2, d: arcPath(BCX, BCY, R1, R2, 270, 330), lbl: midPt(BCX, BCY, R1, R2, 270, 330) },
-  // Mid
-  { id: 7, d: arcPath(BCX, BCY, R2, R3, -30, 30), lbl: midPt(BCX, BCY, R2, R3, -30, 30) },
-  { id: 12, d: arcPath(BCX, BCY, R2, R3, 30, 90), lbl: midPt(BCX, BCY, R2, R3, 30, 90) },
-  { id: 11, d: arcPath(BCX, BCY, R2, R3, 90, 150), lbl: midPt(BCX, BCY, R2, R3, 90, 150) },
-  { id: 10, d: arcPath(BCX, BCY, R2, R3, 150, 210), lbl: midPt(BCX, BCY, R2, R3, 150, 210) },
-  { id: 9, d: arcPath(BCX, BCY, R2, R3, 210, 270), lbl: midPt(BCX, BCY, R2, R3, 210, 270) },
-  { id: 8, d: arcPath(BCX, BCY, R2, R3, 270, 330), lbl: midPt(BCX, BCY, R2, R3, 270, 330) },
-  // Apical
-  { id: 13, d: arcPath(BCX, BCY, R3, R4, -45, 45), lbl: midPt(BCX, BCY, R3, R4, -45, 45) },
-  { id: 16, d: arcPath(BCX, BCY, R3, R4, 45, 135), lbl: midPt(BCX, BCY, R3, R4, 45, 135) },
-  { id: 15, d: arcPath(BCX, BCY, R3, R4, 135, 225), lbl: midPt(BCX, BCY, R3, R4, 135, 225) },
-  { id: 14, d: arcPath(BCX, BCY, R3, R4, 225, 315), lbl: midPt(BCX, BCY, R3, R4, 225, 315) },
+// Label positions (midpoint of each full segment arc)
+const SEG_LABELS: { id: number; lbl: { x: number; y: number } }[] = [
+  { id: 1, lbl: midPt(BCX, BCY, R1, R2, -30, 30) },
+  { id: 6, lbl: midPt(BCX, BCY, R1, R2, 30, 90) },
+  { id: 5, lbl: midPt(BCX, BCY, R1, R2, 90, 150) },
+  { id: 4, lbl: midPt(BCX, BCY, R1, R2, 150, 210) },
+  { id: 3, lbl: midPt(BCX, BCY, R1, R2, 210, 270) },
+  { id: 2, lbl: midPt(BCX, BCY, R1, R2, 270, 330) },
+  { id: 7, lbl: midPt(BCX, BCY, R2, R3, -30, 30) },
+  { id: 12, lbl: midPt(BCX, BCY, R2, R3, 30, 90) },
+  { id: 11, lbl: midPt(BCX, BCY, R2, R3, 90, 150) },
+  { id: 10, lbl: midPt(BCX, BCY, R2, R3, 150, 210) },
+  { id: 9, lbl: midPt(BCX, BCY, R2, R3, 210, 270) },
+  { id: 8, lbl: midPt(BCX, BCY, R2, R3, 270, 330) },
+  { id: 13, lbl: midPt(BCX, BCY, R3, R4, -45, 45) },
+  { id: 16, lbl: midPt(BCX, BCY, R3, R4, 45, 135) },
+  { id: 15, lbl: midPt(BCX, BCY, R3, R4, 135, 225) },
+  { id: 14, lbl: midPt(BCX, BCY, R3, R4, 225, 315) },
 ]
 
-function Bullseye({ selected, onToggle, accentColor, compact }: {
+// ══════════════════════════════════════════════════════════
+// Layered Bullseye — wall sub-layers per pattern
+// ══════════════════════════════════════════════════════════
+
+type SubLayer = 'subepi' | 'meso' | 'subendo'
+
+// Which sub-layers of the wall each pattern fills
+const PATTERN_LAYERS: Record<string, SubLayer[]> = {
+  subepicardico: ['subepi'],
+  mesocardico: ['meso'],
+  mesosubepicardico: ['subepi', 'meso'],
+  transmural: ['subepi', 'meso', 'subendo'],
+  subendocardico: ['subendo'],
+  isquemia: ['subepi', 'meso', 'subendo'],
+  difuso_subendocardico: ['subendo'],
+  difuso_transmural: ['subepi', 'meso', 'subendo'],
+  multifocal: ['subepi', 'meso', 'subendo'],
+}
+
+// Split a ring (rOuter → rInner) into 3 equal sub-layers
+function splitRing(rO: number, rI: number) {
+  const t = (rO - rI) / 3
+  return {
+    subepi:  { rO, rI: rO - t },
+    meso:    { rO: rO - t, rI: rO - 2 * t },
+    subendo: { rO: rO - 2 * t, rI },
+  }
+}
+
+const SUB_BASAL  = splitRing(R1, R2)
+const SUB_MID    = splitRing(R2, R3)
+const SUB_APICAL = splitRing(R3, R4)
+const SUB_APEX   = splitRing(R4, 0)
+
+// Segment → ring sub-layers
+const SEG_SUB: Record<number, Record<SubLayer, { rO: number; rI: number }>> = {}
+for (let i = 1; i <= 6; i++) SEG_SUB[i] = SUB_BASAL
+for (let i = 7; i <= 12; i++) SEG_SUB[i] = SUB_MID
+for (let i = 13; i <= 16; i++) SEG_SUB[i] = SUB_APICAL
+SEG_SUB[17] = SUB_APEX
+
+// Segment angle ranges
+const SEG_ANGLES: Record<number, { s: number; e: number }> = {
+  1: { s: -30, e: 30 },  2: { s: 270, e: 330 }, 3: { s: 210, e: 270 },
+  4: { s: 150, e: 210 }, 5: { s: 90, e: 150 },  6: { s: 30, e: 90 },
+  7: { s: -30, e: 30 },  8: { s: 270, e: 330 }, 9: { s: 210, e: 270 },
+  10: { s: 150, e: 210 }, 11: { s: 90, e: 150 }, 12: { s: 30, e: 90 },
+  13: { s: -45, e: 45 }, 14: { s: 225, e: 315 }, 15: { s: 135, e: 225 },
+  16: { s: 45, e: 135 },
+}
+
+// Pre-compute all sublayer arc paths (segments 1-16)
+const SUB_ARC_PATHS: { segId: number; layer: SubLayer; d: string }[] = []
+const LAYERS: SubLayer[] = ['subepi', 'meso', 'subendo']
+for (const segId of Object.keys(SEG_ANGLES).map(Number)) {
+  const ang = SEG_ANGLES[segId]
+  const sub = SEG_SUB[segId]
+  for (const layer of LAYERS) {
+    const { rO, rI } = sub[layer]
+    SUB_ARC_PATHS.push({ segId, layer, d: arcPath(BCX, BCY, rO, rI, ang.s, ang.e) })
+  }
+}
+
+function LayeredBullseye({ selected, onToggle, accentColor, pattern, compact }: {
   selected: Set<number>
   onToggle: (seg: number) => void
   accentColor: string
+  pattern: string
   compact?: boolean
 }) {
   const fontSize = compact ? 9 : 11
+  const activeLayers = new Set(PATTERN_LAYERS[pattern] || LAYERS)
+
   return (
     <svg viewBox={`0 0 ${BS} ${BS}`} className={compact ? 'w-full' : 'w-full max-w-[220px] mx-auto'}>
-      {SEG_PATHS.map(seg => (
-        <path key={seg.id} d={seg.d}
-          fill={selected.has(seg.id) ? accentColor : 'rgba(128,128,128,0.12)'}
-          stroke="rgba(128,128,128,0.4)" strokeWidth={1.5}
-          onClick={() => onToggle(seg.id)}
-          style={{ cursor: 'pointer', transition: 'fill 0.15s' }}
-        />
+      {/* Sub-layer arcs — segments 1-16 */}
+      {SUB_ARC_PATHS.map(slp => {
+        const on = selected.has(slp.segId) && activeLayers.has(slp.layer)
+        return (
+          <path key={`${slp.segId}-${slp.layer}`} d={slp.d}
+            fill={on ? accentColor : 'rgba(128,128,128,0.10)'}
+            stroke="rgba(128,128,128,0.20)" strokeWidth={0.5}
+            onClick={() => onToggle(slp.segId)}
+            style={{ cursor: 'pointer', transition: 'fill 0.15s' }}
+          />
+        )
+      })}
+
+      {/* Apex sub-layers — segment 17 */}
+      {LAYERS.map(layer => {
+        const { rO, rI } = SUB_APEX[layer]
+        const on = selected.has(17) && activeLayers.has(layer)
+        const fill = on ? accentColor : 'rgba(128,128,128,0.10)'
+        if (rI < 0.1) {
+          return <circle key={`17-${layer}`} cx={BCX} cy={BCY} r={rO}
+            fill={fill} stroke="rgba(128,128,128,0.20)" strokeWidth={0.5}
+            onClick={() => onToggle(17)} style={{ cursor: 'pointer', transition: 'fill 0.15s' }} />
+        }
+        const d = `M${(BCX-rO).toFixed(1)},${BCY} A${rO.toFixed(1)},${rO.toFixed(1)} 0 1 1 ${(BCX+rO).toFixed(1)},${BCY} A${rO.toFixed(1)},${rO.toFixed(1)} 0 1 1 ${(BCX-rO).toFixed(1)},${BCY} ` +
+                  `M${(BCX-rI).toFixed(1)},${BCY} A${rI.toFixed(1)},${rI.toFixed(1)} 0 1 0 ${(BCX+rI).toFixed(1)},${BCY} A${rI.toFixed(1)},${rI.toFixed(1)} 0 1 0 ${(BCX-rI).toFixed(1)},${BCY}`
+        return <path key={`17-${layer}`} d={d} fill={fill} fillRule="evenodd"
+          stroke="rgba(128,128,128,0.20)" strokeWidth={0.5}
+          onClick={() => onToggle(17)} style={{ cursor: 'pointer', transition: 'fill 0.15s' }} />
+      })}
+
+      {/* Ring borders (basal/mid/apical/apex dividers) */}
+      {[R1, R2, R3, R4].map(r => (
+        <circle key={`ring-${r}`} cx={BCX} cy={BCY} r={r}
+          fill="none" stroke="rgba(128,128,128,0.4)" strokeWidth={1}
+          style={{ pointerEvents: 'none' }} />
       ))}
-      <circle cx={BCX} cy={BCY} r={R4}
-        fill={selected.has(17) ? accentColor : 'rgba(128,128,128,0.12)'}
-        stroke="rgba(128,128,128,0.4)" strokeWidth={1.5}
-        onClick={() => onToggle(17)}
-        style={{ cursor: 'pointer', transition: 'fill 0.15s' }}
-      />
-      {SEG_PATHS.map(seg => (
-        <text key={`l${seg.id}`} x={seg.lbl.x} y={seg.lbl.y}
-          textAnchor="middle" dominantBaseline="central"
-          fontSize={fontSize} fontWeight="bold"
-          fill={selected.has(seg.id) ? '#fff' : 'var(--text, #333)'}
-          style={{ pointerEvents: 'none', userSelect: 'none' }}
-        >{seg.id}</text>
-      ))}
+
+      {/* Segment number labels */}
+      {SEG_LABELS.map(seg => {
+        const isOn = selected.has(seg.id)
+        const labelOnColor = isOn && activeLayers.has('meso')
+        return (
+          <text key={`l${seg.id}`} x={seg.lbl.x} y={seg.lbl.y}
+            textAnchor="middle" dominantBaseline="central"
+            fontSize={fontSize} fontWeight="bold"
+            fill={labelOnColor ? '#fff' : 'var(--text, #333)'}
+            stroke={isOn && !labelOnColor ? accentColor : 'none'}
+            strokeWidth={isOn && !labelOnColor ? 2.5 : 0}
+            paintOrder="stroke"
+            style={{ pointerEvents: 'none', userSelect: 'none' }}
+          >{seg.id}</text>
+        )
+      })}
       <text x={BCX} y={BCY} textAnchor="middle" dominantBaseline="central"
         fontSize={fontSize} fontWeight="bold"
-        fill={selected.has(17) ? '#fff' : 'var(--text, #333)'}
+        fill={selected.has(17) && activeLayers.has('meso') ? '#fff' : 'var(--text, #333)'}
+        stroke={selected.has(17) && !activeLayers.has('meso') ? accentColor : 'none'}
+        strokeWidth={selected.has(17) && !activeLayers.has('meso') ? 2.5 : 0}
+        paintOrder="stroke"
         style={{ pointerEvents: 'none', userSelect: 'none' }}
       >17</text>
     </svg>
@@ -676,10 +773,11 @@ function DiseaseCard({ config, instance, onUpdate, onRemove }: {
                       </span>
                       <span className="text-[10px] ml-1" style={{ color: 'var(--text3)' }}>({segs.size})</span>
                     </div>
-                    <Bullseye
+                    <LayeredBullseye
                       selected={segs}
                       onToggle={seg => toggleSegOnPadrao(p.value, seg)}
                       accentColor={config.cor}
+                      pattern={p.value}
                       compact
                     />
                     <div className="flex justify-center gap-1 mt-1">
