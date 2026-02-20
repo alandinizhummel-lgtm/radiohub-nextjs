@@ -61,6 +61,7 @@ interface DiseaseConfig {
   territorios?: { value: string; label: string }[]
   isquemico: boolean
   sufixoTexto?: string // appended after segment list
+  numCamadas?: number  // wall subdivisions: 3 (default, miocardite/etc) or 4 (infarto)
   opcoes?: DiseaseOption[]
 }
 
@@ -106,10 +107,13 @@ const DISEASE_CONFIGS: DiseaseConfig[] = [
     nome: 'Infarto / Isquemia',
     cor: '#f59e0b',
     padroes: [
-      { value: 'subendocardico', label: 'Subendocárdico' },
+      { value: 'inf_lt25', label: '< 25%' },
+      { value: 'inf_25_50', label: '25-50%' },
+      { value: 'inf_50_75', label: '50-75%' },
       { value: 'transmural', label: 'Transmural' },
     ],
     usaBullseye: true,
+    numCamadas: 4,
     temEdema: false,
     temMassa: true,
     temTerritorio: true,
@@ -297,6 +301,9 @@ const PADRAO_LABELS: Record<string, string> = {
   difuso_transmural: 'transmural difuso',
   multifocal: 'multifocal',
   isquemia: 'isquemia',
+  inf_lt25: 'subendocárdico (< 25% da espessura)',
+  inf_25_50: 'subendocárdico (25-50% da espessura)',
+  inf_50_75: '50-75% da espessura',
 }
 
 const TERRITORIO_LABELS: Record<string, string> = {
@@ -549,45 +556,8 @@ const SEG_LABELS: { id: number; lbl: { x: number; y: number } }[] = [
 ]
 
 // ══════════════════════════════════════════════════════════
-// Layered Bullseye — wall sub-layers per pattern
+// Generic wall sub-layer system (supports 3 or 4 divisions)
 // ══════════════════════════════════════════════════════════
-
-type SubLayer = 'subepi' | 'meso' | 'subendo'
-
-// Which sub-layers of the wall each pattern fills
-const PATTERN_LAYERS: Record<string, SubLayer[]> = {
-  subepicardico: ['subepi'],
-  mesocardico: ['meso'],
-  mesosubepicardico: ['subepi', 'meso'],
-  transmural: ['subepi', 'meso', 'subendo'],
-  subendocardico: ['subendo'],
-  isquemia: ['subepi', 'meso', 'subendo'],
-  difuso_subendocardico: ['subendo'],
-  difuso_transmural: ['subepi', 'meso', 'subendo'],
-  multifocal: ['subepi', 'meso', 'subendo'],
-}
-
-// Split a ring (rOuter → rInner) into 3 equal sub-layers
-function splitRing(rO: number, rI: number) {
-  const t = (rO - rI) / 3
-  return {
-    subepi:  { rO, rI: rO - t },
-    meso:    { rO: rO - t, rI: rO - 2 * t },
-    subendo: { rO: rO - 2 * t, rI },
-  }
-}
-
-const SUB_BASAL  = splitRing(R1, R2)
-const SUB_MID    = splitRing(R2, R3)
-const SUB_APICAL = splitRing(R3, R4)
-const SUB_APEX   = splitRing(R4, 0)
-
-// Segment → ring sub-layers
-const SEG_SUB: Record<number, Record<SubLayer, { rO: number; rI: number }>> = {}
-for (let i = 1; i <= 6; i++) SEG_SUB[i] = SUB_BASAL
-for (let i = 7; i <= 12; i++) SEG_SUB[i] = SUB_MID
-for (let i = 13; i <= 16; i++) SEG_SUB[i] = SUB_APICAL
-SEG_SUB[17] = SUB_APEX
 
 // Segment angle ranges
 const SEG_ANGLES: Record<number, { s: number; e: number }> = {
@@ -599,115 +569,159 @@ const SEG_ANGLES: Record<number, { s: number; e: number }> = {
   16: { s: 45, e: 135 },
 }
 
-// Pre-compute all sublayer arc paths (segments 1-16)
-const SUB_ARC_PATHS: { segId: number; layer: SubLayer; d: string }[] = []
-const LAYERS: SubLayer[] = ['subepi', 'meso', 'subendo']
-for (const segId of Object.keys(SEG_ANGLES).map(Number)) {
-  const ang = SEG_ANGLES[segId]
-  const sub = SEG_SUB[segId]
-  for (const layer of LAYERS) {
-    const { rO, rI } = sub[layer]
-    SUB_ARC_PATHS.push({ segId, layer, d: arcPath(BCX, BCY, rO, rI, ang.s, ang.e) })
-  }
+// Ring radii for each segment
+function getSegRing(segId: number): { rO: number; rI: number } {
+  if (segId <= 6) return { rO: R1, rI: R2 }
+  if (segId <= 12) return { rO: R2, rI: R3 }
+  if (segId <= 16) return { rO: R3, rI: R4 }
+  return { rO: R4, rI: 0 }
 }
 
-// Pre-compute radial divider lines between segments
+// Split a ring into N equal sub-layers (index 0 = outermost)
+function splitRingN(rO: number, rI: number, n: number): { rO: number; rI: number }[] {
+  const t = (rO - rI) / n
+  return Array.from({ length: n }, (_, i) => ({ rO: rO - i * t, rI: rO - (i + 1) * t }))
+}
+
+// Which layer indices get filled for a given pattern + numCamadas
+function getActiveLayers(pattern: string, n: number): Set<number> {
+  // Transmural variants → all layers
+  if (pattern === 'transmural' || pattern === 'difuso_transmural' || pattern === 'isquemia' || pattern === 'multifocal') {
+    return new Set(Array.from({ length: n }, (_, i) => i))
+  }
+  // 3-layer system (miocardite, HCM, sarcoidose)
+  if (n === 3) {
+    switch (pattern) {
+      case 'subepicardico': return new Set([0])
+      case 'mesocardico': return new Set([1])
+      case 'mesosubepicardico': return new Set([0, 1])
+      case 'subendocardico': return new Set([2])
+      case 'difuso_subendocardico': return new Set([2])
+      default: return new Set(Array.from({ length: n }, (_, i) => i))
+    }
+  }
+  // 4-layer system (infarto — filling from endocardium outward)
+  if (n === 4) {
+    switch (pattern) {
+      case 'inf_lt25': return new Set([3])
+      case 'inf_25_50': return new Set([2, 3])
+      case 'inf_50_75': return new Set([1, 2, 3])
+      default: return new Set(Array.from({ length: n }, (_, i) => i))
+    }
+  }
+  return new Set(Array.from({ length: n }, (_, i) => i))
+}
+
+// Radial divider lines between segments
 const RADIAL_LINES = [
-  // Basal + Mid share same angles → lines from R3 to R1
   ...[-30, 30, 90, 150, 210, 270].map(a => {
     const p1 = polar(BCX, BCY, R3, a), p2 = polar(BCX, BCY, R1, a)
     return { x1: p1.x, y1: p1.y, x2: p2.x, y2: p2.y }
   }),
-  // Apical → lines from R4 to R3
   ...[-45, 45, 135, 225].map(a => {
     const p1 = polar(BCX, BCY, R4, a), p2 = polar(BCX, BCY, R3, a)
     return { x1: p1.x, y1: p1.y, x2: p2.x, y2: p2.y }
   }),
 ]
 
-const ENH_COLOR = '#1a1a1a' // black for late enhancement
+// ══════════════════════════════════════════════════════════
+// Cycle Bullseye — MRI-style (black bg, white enhancement)
+// ══════════════════════════════════════════════════════════
 
-function CycleBullseye({ segmentosPorPadrao, onCycleSeg, compact }: {
+function CycleBullseye({ segmentosPorPadrao, onCycleSeg, numCamadas = 3 }: {
   segmentosPorPadrao: Record<string, Set<number>>
   onCycleSeg: (seg: number) => void
-  compact?: boolean
+  numCamadas?: number
 }) {
-  const fontSize = compact ? 9 : 11
-
   // Map each segment to its current pattern
   const segPattern = new Map<number, string>()
   for (const [padrao, segs] of Object.entries(segmentosPorPadrao)) {
     for (const seg of segs) segPattern.set(seg, padrao)
   }
 
+  const renderSegLayers = (segId: number, onClick: () => void) => {
+    const ring = getSegRing(segId)
+    const sublayers = splitRingN(ring.rO, ring.rI, numCamadas)
+    const pat = segPattern.get(segId)
+    const active = pat ? getActiveLayers(pat, numCamadas) : new Set<number>()
+    const isApex = segId === 17
+
+    return sublayers.map((sl, idx) => {
+      const on = active.has(idx)
+      const fill = on ? '#e8e8e8' : 'rgba(255,255,255,0.04)'
+
+      if (isApex && sl.rI < 0.1) {
+        return <circle key={`${segId}-${idx}`} cx={BCX} cy={BCY} r={sl.rO}
+          fill={fill} stroke="rgba(255,255,255,0.08)" strokeWidth={0.5}
+          onClick={onClick} style={{ cursor: 'pointer', transition: 'fill 0.15s' }} />
+      }
+      if (isApex) {
+        const d = `M${(BCX-sl.rO).toFixed(1)},${BCY} A${sl.rO.toFixed(1)},${sl.rO.toFixed(1)} 0 1 1 ${(BCX+sl.rO).toFixed(1)},${BCY} A${sl.rO.toFixed(1)},${sl.rO.toFixed(1)} 0 1 1 ${(BCX-sl.rO).toFixed(1)},${BCY} ` +
+                  `M${(BCX-sl.rI).toFixed(1)},${BCY} A${sl.rI.toFixed(1)},${sl.rI.toFixed(1)} 0 1 0 ${(BCX+sl.rI).toFixed(1)},${BCY} A${sl.rI.toFixed(1)},${sl.rI.toFixed(1)} 0 1 0 ${(BCX-sl.rI).toFixed(1)},${BCY}`
+        return <path key={`${segId}-${idx}`} d={d} fill={fill} fillRule="evenodd"
+          stroke="rgba(255,255,255,0.08)" strokeWidth={0.5}
+          onClick={onClick} style={{ cursor: 'pointer', transition: 'fill 0.15s' }} />
+      }
+      const ang = SEG_ANGLES[segId]
+      return <path key={`${segId}-${idx}`} d={arcPath(BCX, BCY, sl.rO, sl.rI, ang.s, ang.e)}
+        fill={fill} stroke="rgba(255,255,255,0.08)" strokeWidth={0.5}
+        onClick={onClick} style={{ cursor: 'pointer', transition: 'fill 0.15s' }} />
+    })
+  }
+
   return (
-    <svg viewBox={`0 0 ${BS} ${BS}`} className={compact ? 'w-full' : 'w-full max-w-[280px] mx-auto'}>
-      {/* Sub-layer arcs — segments 1-16 */}
-      {SUB_ARC_PATHS.map(slp => {
-        const pat = segPattern.get(slp.segId)
-        const active = pat ? new Set(PATTERN_LAYERS[pat] || []) : new Set<SubLayer>()
-        const on = active.has(slp.layer)
-        return (
-          <path key={`${slp.segId}-${slp.layer}`} d={slp.d}
-            fill={on ? ENH_COLOR : 'rgba(128,128,128,0.06)'}
-            stroke="rgba(128,128,128,0.15)" strokeWidth={0.5}
-            onClick={() => onCycleSeg(slp.segId)}
-            style={{ cursor: 'pointer', transition: 'fill 0.15s' }}
-          />
-        )
-      })}
+    <svg viewBox={`0 0 ${BS} ${BS}`} className="w-full max-w-[280px] mx-auto">
+      {/* Black background */}
+      <rect x={0} y={0} width={BS} height={BS} rx={10} fill="#111" />
 
-      {/* Apex sub-layers — segment 17 */}
-      {LAYERS.map(layer => {
-        const { rO, rI } = SUB_APEX[layer]
-        const pat = segPattern.get(17)
-        const active = pat ? new Set(PATTERN_LAYERS[pat] || []) : new Set<SubLayer>()
-        const on = active.has(layer)
-        const fill = on ? ENH_COLOR : 'rgba(128,128,128,0.06)'
-        if (rI < 0.1) {
-          return <circle key={`17-${layer}`} cx={BCX} cy={BCY} r={rO}
-            fill={fill} stroke="rgba(128,128,128,0.15)" strokeWidth={0.5}
-            onClick={() => onCycleSeg(17)} style={{ cursor: 'pointer', transition: 'fill 0.15s' }} />
-        }
-        const d = `M${(BCX-rO).toFixed(1)},${BCY} A${rO.toFixed(1)},${rO.toFixed(1)} 0 1 1 ${(BCX+rO).toFixed(1)},${BCY} A${rO.toFixed(1)},${rO.toFixed(1)} 0 1 1 ${(BCX-rO).toFixed(1)},${BCY} ` +
-                  `M${(BCX-rI).toFixed(1)},${BCY} A${rI.toFixed(1)},${rI.toFixed(1)} 0 1 0 ${(BCX+rI).toFixed(1)},${BCY} A${rI.toFixed(1)},${rI.toFixed(1)} 0 1 0 ${(BCX-rI).toFixed(1)},${BCY}`
-        return <path key={`17-${layer}`} d={d} fill={fill} fillRule="evenodd"
-          stroke="rgba(128,128,128,0.15)" strokeWidth={0.5}
-          onClick={() => onCycleSeg(17)} style={{ cursor: 'pointer', transition: 'fill 0.15s' }} />
-      })}
+      {/* Segments 1-16 */}
+      {Object.keys(SEG_ANGLES).map(Number).map(segId =>
+        renderSegLayers(segId, () => onCycleSeg(segId))
+      )}
 
-      {/* Ring borders — thick */}
+      {/* Apex (17) */}
+      {renderSegLayers(17, () => onCycleSeg(17))}
+
+      {/* Ring borders */}
       {[R1, R2, R3, R4].map(r => (
         <circle key={`ring-${r}`} cx={BCX} cy={BCY} r={r}
-          fill="none" stroke="rgba(60,60,60,0.5)" strokeWidth={1.8}
+          fill="none" stroke="rgba(255,255,255,0.25)" strokeWidth={1.5}
           style={{ pointerEvents: 'none' }} />
       ))}
 
-      {/* Radial segment dividers — thick */}
+      {/* Radial segment dividers */}
       {RADIAL_LINES.map((l, i) => (
         <line key={`rad-${i}`} x1={l.x1} y1={l.y1} x2={l.x2} y2={l.y2}
-          stroke="rgba(60,60,60,0.5)" strokeWidth={1.8}
+          stroke="rgba(255,255,255,0.25)" strokeWidth={1.5}
           style={{ pointerEvents: 'none' }} />
       ))}
 
       {/* Segment number labels */}
       {SEG_LABELS.map(seg => {
         const pat = segPattern.get(seg.id)
-        const hasMeso = pat && (PATTERN_LAYERS[pat] || []).includes('meso')
+        const midIdx = Math.floor(numCamadas / 2)
+        const onMid = pat && getActiveLayers(pat, numCamadas).has(midIdx)
         return (
           <text key={`l${seg.id}`} x={seg.lbl.x} y={seg.lbl.y}
             textAnchor="middle" dominantBaseline="central"
-            fontSize={fontSize} fontWeight="bold"
-            fill={hasMeso ? '#fff' : 'var(--text, #333)'}
+            fontSize={9} fontWeight="bold"
+            fill={onMid ? '#222' : 'rgba(255,255,255,0.5)'}
             style={{ pointerEvents: 'none', userSelect: 'none' }}
           >{seg.id}</text>
         )
       })}
-      <text x={BCX} y={BCY} textAnchor="middle" dominantBaseline="central"
-        fontSize={fontSize} fontWeight="bold"
-        fill={segPattern.has(17) && (PATTERN_LAYERS[segPattern.get(17)!] || []).includes('meso') ? '#fff' : 'var(--text, #333)'}
-        style={{ pointerEvents: 'none', userSelect: 'none' }}
-      >17</text>
+      {(() => {
+        const pat = segPattern.get(17)
+        const midIdx = Math.floor(numCamadas / 2)
+        const onMid = pat && getActiveLayers(pat, numCamadas).has(midIdx)
+        return (
+          <text x={BCX} y={BCY} textAnchor="middle" dominantBaseline="central"
+            fontSize={9} fontWeight="bold"
+            fill={onMid ? '#222' : 'rgba(255,255,255,0.5)'}
+            style={{ pointerEvents: 'none', userSelect: 'none' }}
+          >17</text>
+        )
+      })()}
     </svg>
   )
 }
@@ -793,6 +807,7 @@ function DiseaseCard({ config, instance, onUpdate, onRemove }: {
             <CycleBullseye
               segmentosPorPadrao={instance.segmentosPorPadrao}
               onCycleSeg={cycleSeg}
+              numCamadas={config.numCamadas || 3}
             />
             {/* Legend */}
             <div className="flex flex-wrap gap-1.5 mt-2 justify-center">
