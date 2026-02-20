@@ -153,6 +153,9 @@ export default function CardiacCalculator() {
   const [anMiocardioText, setAnMiocardioText] = useState('Miocárdio ventricular esquerdo com espessura e sinal preservados.\nNão se identifica realce tardio miocárdico.')
   const handleMiocardioChange = useCallback((text: string) => setAnMiocardioText(text), [])
 
+  // ── Technique ──
+  const [comContraste, setComContraste] = useState(true)
+
   // ── Perfusion ──
   const [perfStress, setPerfStress] = useState(false)
 
@@ -344,6 +347,14 @@ export default function CardiacCalculator() {
     return 'Perfusão miocárdica em repouso sem sinais de isquemia.'
   }, [perfStress])
 
+  const textoMetodo = useMemo(() => {
+    const repouso = perfStress ? 'Exame realizado em repouso e após estresse farmacológico.' : 'Exame realizado em repouso.'
+    if (comContraste) {
+      return `Realizadas sequências de cinerressonância e morfológicas antes da administração endovenosa do meio de contraste paramagnético. Após a sua administração, foram realizadas sequências de perfusão miocárdica, volumétrica do tórax e de realce tardio. ${repouso}`
+    }
+    return `Realizadas sequências de cinerressonância e morfológicas sem administração de meio de contraste paramagnético. ${repouso}`
+  }, [comContraste, perfStress])
+
   const textoValvas = useMemo(() => {
     const allValves = [
       { nome: 'aórtica', ...valvaAortica },
@@ -396,31 +407,55 @@ export default function CardiacCalculator() {
     if (!aortaAlterada) return 'Aorta torácica e tronco pulmonar com calibre normal.'
 
     const segments = [
-      { value: aortaBulbo, label: 'bulbo aórtico' },
-      { value: aortaAscendente, label: 'porção tubular ascendente da aorta' },
-      { value: aortaCrossa, label: 'crossa aórtica' },
-      { value: aortaDescendente, label: 'aorta descendente' },
-    ].filter(s => s.value)
+      { value: aortaBulbo, label: 'bulbo aórtico', vn: 4.0 },
+      { value: aortaAscendente, label: 'porção tubular ascendente da aorta', vn: 4.0 },
+      { value: aortaCrossa, label: 'crossa aórtica', vn: 3.5 },
+      { value: aortaDescendente, label: 'aorta descendente', vn: 3.0 },
+    ]
+
+    const filled = segments.filter(s => s.value)
+    const ectasias = filled.filter(s => parseFloat(s.value) > s.vn)
+    const normais = filled.filter(s => parseFloat(s.value) <= s.vn)
 
     let texto = ''
-    if (segments.length > 0) {
-      const ectasias = segments.map(s => `ectasia do ${s.label}, medindo até ${s.value} cm`)
-      const first = ectasias.shift()!
+    if (ectasias.length > 0) {
+      const parts = ectasias.map(s => `ectasia do ${s.label}, medindo até ${s.value} cm`)
+      const first = parts.shift()!
       texto = first.charAt(0).toUpperCase() + first.slice(1)
-      if (ectasias.length > 0) {
-        const last = ectasias.pop()!
-        texto += ectasias.length > 0 ? ', ' + ectasias.join(', ') + ' e ' + last : ' e ' + last
+      if (parts.length > 0) {
+        const last = parts.pop()!
+        texto += parts.length > 0 ? ', ' + parts.join(', ') + ' e ' + last : ' e ' + last
       }
       texto += '.'
-      if (segments.length < 4) {
-        texto += ' Demais segmentos da aorta torácica com trajeto e calibre preservados.'
-      }
-    } else {
-      texto = 'Aorta torácica com trajeto e calibre preservados.'
     }
 
-    if (troncoPulmonar) {
+    if (normais.length > 0 && ectasias.length > 0) {
+      // Report normal segments with their measurements (aortometry)
+      const normParts = normais.map(s => `${s.label} medindo ${s.value} cm`)
+      texto += ' ' + normParts.map((p, i) => i === 0 ? p.charAt(0).toUpperCase() + p.slice(1) : p).join(', ')
+      if (filled.length < 4) {
+        texto += '. Demais segmentos da aorta torácica com trajeto e calibre preservados.'
+      } else {
+        texto += '.'
+      }
+    } else if (normais.length > 0 && ectasias.length === 0) {
+      // All filled segments are normal - aortometry only
+      const normParts = normais.map(s => `${s.label} medindo ${s.value} cm`)
+      texto = 'Aorta torácica com trajeto e calibre preservados: ' + normParts.join(', ') + '.'
+      if (filled.length < 4) {
+        texto += ' Demais segmentos com trajeto e calibre preservados.'
+      }
+    } else if (filled.length === 0) {
+      texto = 'Aorta torácica com trajeto e calibre preservados.'
+    } else if (ectasias.length > 0 && filled.length < 4) {
+      texto += ' Demais segmentos da aorta torácica com trajeto e calibre preservados.'
+    }
+
+    const tpVal = parseFloat(troncoPulmonar)
+    if (troncoPulmonar && tpVal > 3.0) {
       texto += `\nEctasia do tronco da artéria pulmonar, medindo até ${troncoPulmonar} cm.`
+    } else if (troncoPulmonar && tpVal <= 3.0) {
+      texto += `\nTronco pulmonar com calibre normal, medindo ${troncoPulmonar} cm.`
     } else {
       texto += '\nTronco pulmonar com calibre normal.'
     }
@@ -728,7 +763,7 @@ export default function CardiacCalculator() {
       linhas = [
         'RESSONÂNCIA MAGNÉTICA DE CORAÇÃO', '',
         'Método', '',
-        'Realizadas sequências de cinerressonância e morfológicas antes da administração endovenosa do meio de contraste paramagnético. Após a sua administração, foram realizadas sequências de perfusão miocárdica, volumétrica do tórax e de realce tardio. Exame realizado em repouso.',
+        textoMetodo,
         '', 'Análise', '',
         textoAtrios, '',
         textoVD + ' Volume diastólico final de ' + v.VD_EDV + ' ml e ' + v.VD_EDV_INDEX + ' ml/m², volume sistólico final de ' + v.VD_ESV_INDEX + ' ml/m² e fração de ejeção estimada em ' + v.VD_EF + '%.',
@@ -754,7 +789,7 @@ export default function CardiacCalculator() {
       linhas = [
         'RESSONÂNCIA MAGNÉTICA DE CORAÇÃO', '',
         'Método', '',
-        'Realizadas sequências de cinerressonância e morfológicas antes da administração endovenosa do meio de contraste paramagnético. Após a sua administração, foram realizadas sequências de perfusão miocárdica, volumétrica do tórax e de realce tardio. Exame realizado em repouso.',
+        textoMetodo,
         '', 'Análise', '',
         textoAtrios, '',
         textoVD, 'Miocárdio ventricular direito com espessura e sinal preservados.', '',
@@ -818,7 +853,7 @@ export default function CardiacCalculator() {
         return '<p style="margin:0;line-height:1.5;font-weight:bold">' + t + '</p>'
       return '<p style="margin:0;line-height:1.5">' + t + '</p>'
     }).join('')
-  }, [sexo, asc, veResults, vdResults, aeResults, adResults, ecvResults, ecvClassif, cl, fmt, mascara, veDdf, veEspSepto, veEspInferior, aeDiamAp, t1MioPre, t1SanguePre, t1MioPos, t1SanguePos, t2Nativo, t2Estrela, campoMag, tipoRef, volumeDiff, firestoreMasks, anMiocardioText, textoPerfusao, textoValvas, textoPericardio, textoAortaPulmonar])
+  }, [sexo, asc, veResults, vdResults, aeResults, adResults, ecvResults, ecvClassif, cl, fmt, mascara, veDdf, veEspSepto, veEspInferior, aeDiamAp, t1MioPre, t1SanguePre, t1MioPos, t1SanguePos, t2Nativo, t2Estrela, campoMag, tipoRef, volumeDiff, firestoreMasks, anMiocardioText, textoPerfusao, textoMetodo, textoValvas, textoPericardio, textoAortaPulmonar])
 
   // ── Report actions ──
   const copiarLaudo = async () => {
@@ -877,8 +912,8 @@ export default function CardiacCalculator() {
   }
 
   // ── Result card component ──
-  const ResultItem = ({ label, value, unit, param, tooltip }: {
-    label: string; value: number; unit: string; param?: string; tooltip?: string
+  const ResultItem = ({ label, value, unit, param, tooltip, checar }: {
+    label: string; value: number; unit: string; param?: string; tooltip?: string; checar?: boolean
   }) => {
     const classif = param && sexo ? cl(param, value) : null
     const cs = classif ? classifStyles[classif] : null
@@ -909,14 +944,21 @@ export default function CardiacCalculator() {
         }}
         title={tooltip}
       >
-        {classif && cs && (
-          <span
-            className="inline-block mb-1 text-[10px] px-2 py-0.5 rounded-full font-bold tracking-wider uppercase text-white"
-            style={{ backgroundColor: cs.badgeBg }}
-          >
-            {classifTexts(classif, ref?.tipo || 'aumentado')}
-          </span>
-        )}
+        <div className="flex items-center gap-1 flex-wrap mb-1">
+          {classif && cs && (
+            <span
+              className="inline-block text-[10px] px-2 py-0.5 rounded-full font-bold tracking-wider uppercase text-white"
+              style={{ backgroundColor: cs.badgeBg }}
+            >
+              {classifTexts(classif, ref?.tipo || 'aumentado')}
+            </span>
+          )}
+          {checar && (
+            <span className="inline-block text-[10px] px-2 py-0.5 rounded-full font-bold tracking-wider uppercase border" style={{ color: 'var(--orange, #d97706)', borderColor: 'var(--orange, #d97706)', backgroundColor: 'transparent' }}>
+              checar
+            </span>
+          )}
+        </div>
         <div className="text-[11px] font-semibold tracking-wider uppercase text-[var(--text3)] mb-1">{label}</div>
         <span className="font-mono text-xl font-medium text-[var(--text)]">
           {isNaN(value) ? '-' : fmt(value)}
@@ -1032,7 +1074,7 @@ export default function CardiacCalculator() {
             {isLight ? '🌙' : '☀️'}
           </button>
           <span className="text-[10px] font-mono text-[var(--text3)] border border-[var(--border)] px-2 py-1 rounded-full tracking-wider uppercase hidden sm:inline">
-            v11 &middot; Gerador de Laudo
+            v12 &middot; Gerador de Laudo
           </span>
         </div>
       </header>
@@ -1086,6 +1128,27 @@ export default function CardiacCalculator() {
                   {firestoreRefs.map(r => (
                     <option key={r.id} value={r.id}>{r.nome}</option>
                   ))}
+                </select>
+              </div>
+            </div>
+          </CollapsibleCard>
+
+          {/* Technique */}
+          <CollapsibleCard title="Técnica do Exame" defaultOpen={true}>
+            <div className="space-y-3">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={comContraste} onChange={e => setComContraste(e.target.checked)} className="w-4 h-4 accent-[var(--accent)]" />
+                <span className="text-sm font-medium text-[var(--text)]">Com contraste</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={perfStress} onChange={e => setPerfStress(e.target.checked)} className="w-4 h-4 accent-[var(--accent)]" />
+                <span className="text-sm font-medium text-[var(--text)]">Com estresse farmacológico</span>
+              </label>
+              <div>
+                <label className={labelCls}>Campo Magnético</label>
+                <select className={selectCls} value={campoMag} onChange={e => setCampoMag(e.target.value)}>
+                  <option value="1.5">1.5T</option>
+                  <option value="3">3T</option>
                 </select>
               </div>
             </div>
@@ -1256,14 +1319,7 @@ export default function CardiacCalculator() {
               <div><label className={labelCls}>T1 Mio Pós (ms)</label><input type="number" step="0.1" className={inputCls} value={t1MioPos} onChange={e => setT1MioPos(e.target.value)} /></div>
               <div><label className={labelCls}>T1 Sangue Pós (ms)</label><input type="number" step="0.1" className={inputCls} value={t1SanguePos} onChange={e => setT1SanguePos(e.target.value)} /></div>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-3">
-              <div>
-                <label className={labelCls}>Campo Magnético</label>
-                <select className={selectCls} value={campoMag} onChange={e => setCampoMag(e.target.value)}>
-                  <option value="1.5">1.5T</option>
-                  <option value="3">3T</option>
-                </select>
-              </div>
+            <div className="grid grid-cols-2 gap-3 mb-3">
               <div>
                 <label className={labelCls}>Hematócrito (0-1)</label>
                 <input type="number" step="0.01" className={inputCls} value={hematocrito} onChange={e => setHematocrito(e.target.value)} placeholder="ex: 0,42" />
@@ -1287,14 +1343,11 @@ export default function CardiacCalculator() {
 
           {/* Perfusion */}
           <CollapsibleCard title="Perfusão" defaultOpen={false}>
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" checked={perfStress} onChange={e => setPerfStress(e.target.checked)} className="w-4 h-4 accent-[var(--accent)]" />
-              <span className="text-sm font-medium text-[var(--text)]">Estudo com estresse farmacológico</span>
-            </label>
-            <div className="mt-3 rounded-lg p-3 text-xs leading-relaxed border" style={{ backgroundColor: 'var(--bg2, var(--surface2))', borderColor: 'var(--border)', color: 'var(--text2)' }}>
+            <div className="rounded-lg p-3 text-xs leading-relaxed border" style={{ backgroundColor: 'var(--bg2, var(--surface2))', borderColor: 'var(--border)', color: 'var(--text2)' }}>
               <span className="font-bold text-[10px] uppercase tracking-wider block mb-1" style={{ color: 'var(--accent)' }}>Texto gerado:</span>
               {textoPerfusao}
             </div>
+            <p className="text-[11px] text-[var(--text3)] italic mt-2">* Estresse farmacológico controlado em &ldquo;Técnica do Exame&rdquo;</p>
           </CollapsibleCard>
 
           {/* Valves */}
@@ -1482,15 +1535,15 @@ export default function CardiacCalculator() {
           <CollapsibleCard title="VE - Ventrículo Esquerdo" defaultOpen={true}>
             <SectionTitle dot="bg-red-600" refSecao="VE">Ventrículo Esquerdo</SectionTitle>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-              <ResultItem label="VDF" value={veResults?.edv ?? NaN} unit="ml" param="VE_EDV" tooltip="Volume Diastólico Final" />
-              <ResultItem label="VDF Index" value={veResults?.edvI ?? NaN} unit="ml/m²" param="VE_EDV_INDEX" tooltip="VDF Indexado por ASC" />
-              <ResultItem label="VSF" value={veResults?.esv ?? NaN} unit="ml" param="VE_ESV" tooltip="Volume Sistólico Final" />
-              <ResultItem label="VSF Index" value={veResults?.esvI ?? NaN} unit="ml/m²" param="VE_ESV_INDEX" tooltip="VSF Indexado por ASC" />
-              <ResultItem label="Fração de Ejeção" value={veResults?.ef ?? NaN} unit="%" param="VE_EF" tooltip="Fração de Ejeção (FEVE)" />
-              <ResultItem label="Vol. Ejetado" value={veResults?.ve ?? NaN} unit="ml" tooltip="Volume Ejetado (VDF - VSF)" />
-              <ResultItem label="Vol. Ejet. Index" value={veResults?.veI ?? NaN} unit="ml/m²" tooltip="Volume Ejetado Indexado" />
-              <ResultItem label="Massa" value={veResults?.massa ?? NaN} unit="g" param="VE_MASSA" tooltip="Massa Miocárdica VE" />
-              <ResultItem label="Massa Index" value={veResults?.massaI ?? NaN} unit="g/m²" param="VE_MASSA_INDEX" tooltip="Massa VE Indexada por ASC" />
+              <ResultItem label="VDF" value={veResults?.edv ?? NaN} unit="ml" param="VE_EDV" tooltip="Volume Diastólico Final" checar />
+              <ResultItem label="VDF Index" value={veResults?.edvI ?? NaN} unit="ml/m²" param="VE_EDV_INDEX" tooltip="VDF Indexado por ASC" checar />
+              <ResultItem label="VSF" value={veResults?.esv ?? NaN} unit="ml" param="VE_ESV" tooltip="Volume Sistólico Final" checar />
+              <ResultItem label="VSF Index" value={veResults?.esvI ?? NaN} unit="ml/m²" param="VE_ESV_INDEX" tooltip="VSF Indexado por ASC" checar />
+              <ResultItem label="Fração de Ejeção" value={veResults?.ef ?? NaN} unit="%" param="VE_EF" tooltip="Fração de Ejeção (FEVE)" checar />
+              <ResultItem label="Vol. Ejetado" value={veResults?.ve ?? NaN} unit="ml" tooltip="Volume Ejetado (VDF - VSF)" checar />
+              <ResultItem label="Vol. Ejet. Index" value={veResults?.veI ?? NaN} unit="ml/m²" tooltip="Volume Ejetado Indexado" checar />
+              <ResultItem label="Massa" value={veResults?.massa ?? NaN} unit="g" param="VE_MASSA" tooltip="Massa Miocárdica VE" checar />
+              <ResultItem label="Massa Index" value={veResults?.massaI ?? NaN} unit="g/m²" param="VE_MASSA_INDEX" tooltip="Massa VE Indexada por ASC" checar />
             </div>
             {volumeDiff != null && volumeDiff > 15 && (
               <div className={`mt-3 text-sm font-bold font-mono ${volumeDiff > 30 ? 'text-[var(--red)]' : 'text-[var(--orange)]'}`}>
@@ -1503,15 +1556,15 @@ export default function CardiacCalculator() {
           <CollapsibleCard title="VD - Ventrículo Direito" defaultOpen={true}>
             <SectionTitle dot="bg-blue-600" refSecao="VD">Ventrículo Direito</SectionTitle>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-              <ResultItem label="VDF" value={vdResults?.edv ?? NaN} unit="ml" param="VD_EDV" tooltip="Volume Diastólico Final VD" />
-              <ResultItem label="VDF Index" value={vdResults?.edvI ?? NaN} unit="ml/m²" param="VD_EDV_INDEX" tooltip="VDF VD Indexado por ASC" />
-              <ResultItem label="VSF" value={vdResults?.esv ?? NaN} unit="ml" param="VD_ESV" tooltip="Volume Sistólico Final VD" />
-              <ResultItem label="VSF Index" value={vdResults?.esvI ?? NaN} unit="ml/m²" param="VD_ESV_INDEX" tooltip="VSF VD Indexado por ASC" />
-              <ResultItem label="Fração de Ejeção" value={vdResults?.ef ?? NaN} unit="%" param="VD_EF" tooltip="Fração de Ejeção VD" />
-              <ResultItem label="Vol. Ejetado" value={vdResults?.ve ?? NaN} unit="ml" tooltip="Volume Ejetado VD" />
-              <ResultItem label="Vol. Ejet. Index" value={vdResults?.veI ?? NaN} unit="ml/m²" tooltip="Volume Ejetado VD Indexado" />
-              {calcMassaVD && <ResultItem label="Massa" value={vdResults?.massa ?? NaN} unit="g" param="VD_MASSA" tooltip="Massa Miocárdica VD" />}
-              {calcMassaVD && <ResultItem label="Massa Index" value={vdResults?.massaI ?? NaN} unit="g/m²" param="VD_MASSA_INDEX" tooltip="Massa VD Indexada por ASC" />}
+              <ResultItem label="VDF" value={vdResults?.edv ?? NaN} unit="ml" param="VD_EDV" tooltip="Volume Diastólico Final VD" checar />
+              <ResultItem label="VDF Index" value={vdResults?.edvI ?? NaN} unit="ml/m²" param="VD_EDV_INDEX" tooltip="VDF VD Indexado por ASC" checar />
+              <ResultItem label="VSF" value={vdResults?.esv ?? NaN} unit="ml" param="VD_ESV" tooltip="Volume Sistólico Final VD" checar />
+              <ResultItem label="VSF Index" value={vdResults?.esvI ?? NaN} unit="ml/m²" param="VD_ESV_INDEX" tooltip="VSF VD Indexado por ASC" checar />
+              <ResultItem label="Fração de Ejeção" value={vdResults?.ef ?? NaN} unit="%" param="VD_EF" tooltip="Fração de Ejeção VD" checar />
+              <ResultItem label="Vol. Ejetado" value={vdResults?.ve ?? NaN} unit="ml" tooltip="Volume Ejetado VD" checar />
+              <ResultItem label="Vol. Ejet. Index" value={vdResults?.veI ?? NaN} unit="ml/m²" tooltip="Volume Ejetado VD Indexado" checar />
+              {calcMassaVD && <ResultItem label="Massa" value={vdResults?.massa ?? NaN} unit="g" param="VD_MASSA" tooltip="Massa Miocárdica VD" checar />}
+              {calcMassaVD && <ResultItem label="Massa Index" value={vdResults?.massaI ?? NaN} unit="g/m²" param="VD_MASSA_INDEX" tooltip="Massa VD Indexada por ASC" checar />}
             </div>
           </CollapsibleCard>
 
@@ -1519,9 +1572,9 @@ export default function CardiacCalculator() {
           <CollapsibleCard title="AE - Átrio Esquerdo" defaultOpen={true}>
             <SectionTitle dot="bg-purple-600" refSecao="AE">Átrio Esquerdo</SectionTitle>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-              <ResultItem label="Vol Index" value={aeResults.volI} unit="ml/m²" param="AE_VOL_INDEX" />
-              <ResultItem label="Área 4CH Index" value={aeResults.area4chI} unit="cm²/m²" />
-              <ResultItem label="Área 2CH Index" value={aeResults.area2chI} unit="cm²/m²" />
+              <ResultItem label="Vol Index" value={aeResults.volI} unit="ml/m²" param="AE_VOL_INDEX" checar />
+              <ResultItem label="Área 4CH Index" value={aeResults.area4chI} unit="cm²/m²" checar />
+              <ResultItem label="Área 2CH Index" value={aeResults.area2chI} unit="cm²/m²" checar />
             </div>
           </CollapsibleCard>
 
@@ -1529,8 +1582,8 @@ export default function CardiacCalculator() {
           <CollapsibleCard title="AD - Átrio Direito" defaultOpen={true}>
             <SectionTitle dot="bg-teal-600" refSecao="AD">Átrio Direito</SectionTitle>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-              <ResultItem label="Área 4CH Index" value={adResults.area4chI} unit="cm²/m²" param="AD_AREA_4CH_INDEX" />
-              <ResultItem label="Área 2CH Index" value={adResults.area2chI} unit="cm²/m²" />
+              <ResultItem label="Área 4CH Index" value={adResults.area4chI} unit="cm²/m²" param="AD_AREA_4CH_INDEX" checar />
+              <ResultItem label="Área 2CH Index" value={adResults.area2chI} unit="cm²/m²" checar />
             </div>
           </CollapsibleCard>
 
