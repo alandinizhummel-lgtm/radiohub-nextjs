@@ -24,7 +24,7 @@ const CALCULADORAS_POR_SPEC: Record<string, Array<{nome: string, descricao: stri
     { nome: 'PESI Score', descricao: 'Gravidade de embolia pulmonar', link: '/calculadora/pesi' },
   ],
   cardio: [
-    { nome: 'RM Cardíaca', descricao: 'Volumes, FE, massa, ECV, laudo assistido', link: '/calculadora/rm-cardiaca' },
+    { nome: 'Gerador de Laudo · RM Cardíaca', descricao: 'Volumes, FE, massa, ECV, gerador de laudo assistido', link: '/calculadora/rm-cardiaca' },
     { nome: 'CAD-RADS', descricao: 'Classificação de estenose coronariana na TC', link: '/calculadora/cad-rads' },
   ],
   gi: [

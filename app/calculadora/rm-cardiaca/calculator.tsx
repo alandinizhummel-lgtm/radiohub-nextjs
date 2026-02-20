@@ -21,6 +21,7 @@ import AnaliseMiocardio from './analise-miocardio'
 // ── Types ────────────────────────────────────────────────
 interface DiastoleRow { ve_endo: string; ve_epi: string; vd_endo: string; vd_epi: string }
 interface SystoleRow { ve_endo: string; vd_endo: string }
+interface ValveState { alterada: boolean; refluxo: string }
 
 const emptyDias = (): DiastoleRow => ({ ve_endo: '', ve_epi: '', vd_endo: '', vd_epi: '' })
 const emptySist = (): SystoleRow => ({ ve_endo: '', vd_endo: '' })
@@ -151,6 +152,28 @@ export default function CardiacCalculator() {
   // ── Myocardium analysis ──
   const [anMiocardioText, setAnMiocardioText] = useState('Miocárdio ventricular esquerdo com espessura e sinal preservados.\nNão se identifica realce tardio miocárdico.')
   const handleMiocardioChange = useCallback((text: string) => setAnMiocardioText(text), [])
+
+  // ── Perfusion ──
+  const [perfStress, setPerfStress] = useState(false)
+
+  // ── Valves ──
+  const [valvaAortica, setValvaAortica] = useState<ValveState>({ alterada: false, refluxo: '' })
+  const [valvaMitral, setValvaMitral] = useState<ValveState>({ alterada: false, refluxo: '' })
+  const [valvaTricuspide, setValvaTricuspide] = useState<ValveState>({ alterada: false, refluxo: '' })
+  const [valvaPulmonar, setValvaPulmonar] = useState<ValveState>({ alterada: false, refluxo: '' })
+
+  // ── Pericardium ──
+  const [pericardioNormal, setPericardioNormal] = useState(true)
+  const [pericardioEspessamento, setPericardioEspessamento] = useState(false)
+  const [pericardioDerrame, setPericardioDerrame] = useState(false)
+
+  // ── Aorta & Pulmonary ──
+  const [aortaAlterada, setAortaAlterada] = useState(false)
+  const [aortaBulbo, setAortaBulbo] = useState('')
+  const [aortaAscendente, setAortaAscendente] = useState('')
+  const [aortaCrossa, setAortaCrossa] = useState('')
+  const [aortaDescendente, setAortaDescendente] = useState('')
+  const [troncoPulmonar, setTroncoPulmonar] = useState('')
 
   // ── Firestore masks/references ──
   const [firestoreMasks, setFirestoreMasks] = useState<CardiacMask[]>([])
@@ -313,6 +336,69 @@ export default function CardiacCalculator() {
     const diff = Math.abs(veResults.ve - vdResults.ve)
     return diff
   }, [veResults, vdResults])
+
+  // ── Computed text blocks ──
+  const textoPerfusao = useMemo(() => {
+    if (perfStress) return 'Perfusão miocárdica em repouso e pós-estresse farmacológico sem sinais de isquemia.'
+    return 'Perfusão miocárdica em repouso sem sinais de isquemia.'
+  }, [perfStress])
+
+  const textoValvas = useMemo(() => {
+    const valves = [
+      { nome: 'aórtica', ...valvaAortica },
+      { nome: 'mitral', ...valvaMitral },
+      { nome: 'tricúspide', ...valvaTricuspide },
+      { nome: 'pulmonar', ...valvaPulmonar },
+    ].filter(v => v.alterada && v.refluxo)
+
+    if (valves.length === 0) return 'Valvas cardíacas sem alterações evidentes ao método.'
+
+    const grades = new Set(valves.map(v => v.refluxo))
+    let texto: string
+
+    if (grades.size === 1) {
+      const grade = valves[0].refluxo
+      if (valves.length === 1) {
+        texto = `Valva ${valves[0].nome} com refluxo ${grade}`
+      } else {
+        const names = valves.map(v => v.nome)
+        const last = names.pop()!
+        texto = `Valvas ${names.join(', ')} e ${last} com refluxo ${grade}`
+      }
+    } else {
+      const parts = valves.map(v => `valva ${v.nome} com refluxo ${v.refluxo}`)
+      const last = parts.pop()!
+      texto = parts.join(', ') + ' e ' + last
+      texto = texto.charAt(0).toUpperCase() + texto.slice(1)
+    }
+
+    texto += ' (análise visual qualitativa). Demais valvas cardíacas sem alterações evidentes ao método.'
+    return texto
+  }, [valvaAortica, valvaMitral, valvaTricuspide, valvaPulmonar])
+
+  const textoPericardio = useMemo(() => {
+    if (pericardioNormal) return 'Não se observa espessamento ou derrame pericárdico.'
+    const achados: string[] = []
+    if (pericardioEspessamento) achados.push('espessamento pericárdico')
+    if (pericardioDerrame) achados.push('derrame pericárdico')
+    if (achados.length === 0) return 'Não se observa espessamento ou derrame pericárdico.'
+    return `Observa-se ${achados.join(' e ')}.`
+  }, [pericardioNormal, pericardioEspessamento, pericardioDerrame])
+
+  const textoAortaPulmonar = useMemo(() => {
+    if (!aortaAlterada) return 'Aorta torácica e tronco pulmonar com calibre normal.'
+    const b = aortaBulbo || '[  ]'
+    const a = aortaAscendente || '[  ]'
+    const c = aortaCrossa || '[  ]'
+    const d = aortaDescendente || '[  ]'
+    let texto = `Aorta torácica com trajeto, calibre e opacificação normais. Diâmetros de até ${b} cm no bulbo (VN ≤ 4,0 cm), ${a} cm na porção tubular ascendente (VN ≤ 4,0 cm), ${c} cm na porção média da crossa (VN ≤ 3,5 cm) e ${d} cm na porção média descendente (VN ≤ 3,0 cm).`
+    if (troncoPulmonar) {
+      texto += `\nTronco da artéria pulmonar com diâmetro de ${troncoPulmonar} cm (VN ≤ 3,0 cm).`
+    } else {
+      texto += '\nTronco pulmonar com calibre normal.'
+    }
+    return texto
+  }, [aortaAlterada, aortaBulbo, aortaAscendente, aortaCrossa, aortaDescendente, troncoPulmonar])
 
   // ── Helper: classify ──
   const cl = useCallback((param: string, valor: number): Classificacao | null => {
@@ -574,12 +660,12 @@ export default function CardiacCalculator() {
       '#átrios': () => textoAtrios,
       '#mapasparamétricos': () => mapasLinhas.join('\n'),
       '#conclusão': () => resumo.join('\n'),
-      '#perfusao': () => 'Perfusão miocárdica em repouso sem sinais de isquemia.',
+      '#perfusao': () => textoPerfusao,
       '#realcetardio': () => 'Não se identifica realce tardio miocárdico.',
       '#anmiocardio': () => anMiocardioText,
-      '#valvas': () => 'Valvas cardíacas sem alterações evidentes ao método.',
-      '#pericardio': () => 'Não se observa espessamento ou derrame pericárdico.',
-      '#aortaepulmonar': () => 'Aorta torácica e tronco pulmonar com calibre normal.',
+      '#valvas': () => textoValvas,
+      '#pericardio': () => textoPericardio,
+      '#aortaepulmonar': () => textoAortaPulmonar,
     }
 
     // If Firestore mask selected, use template engine
@@ -626,11 +712,13 @@ export default function CardiacCalculator() {
         'Espessura relativa: [  ] (≤ 0,42);',
         'Índice relativo de massa: [  ] g/ml;',
         ...(mapasLinhas.length ? ['', 'Mapas Paramétricos:', ...mapasLinhas] : []),
-        '', 'Perfusão miocárdica em repouso sem sinais de isquemia.',
-        'Não se identifica realce tardio miocárdico.',
-        'Valvas cardíacas sem alterações evidentes ao método.',
-        'Não se observa espessamento ou derrame pericárdico.',
-        'Aorta torácica e tronco pulmonar com calibre normal.',
+        '', textoPerfusao,
+        ...(anMiocardioText.includes('Não se identifica realce tardio')
+          ? ['Não se identifica realce tardio miocárdico.']
+          : anMiocardioText.split('\n')),
+        textoValvas,
+        textoPericardio,
+        textoAortaPulmonar,
         '', 'Comentários', '',
         ...resumo, ...rodape,
       ]
@@ -644,11 +732,13 @@ export default function CardiacCalculator() {
         textoVD, 'Miocárdio ventricular direito com espessura e sinal preservados.', '',
         textoVE, 'Miocárdio ventricular esquerdo com espessura preservada, medindo até ' + v.VE_ESP_SEPTO + ' cm na parede septal basal.',
         ...(mapasLinhas.length ? ['', 'Mapas Paramétricos:', ...mapasLinhas] : []),
-        '', 'Perfusão miocárdica em repouso sem sinais de isquemia.',
-        'Não se identifica realce tardio miocárdico.',
-        'Valvas cardíacas sem alterações evidentes ao método.',
-        'Não se observa espessamento ou derrame pericárdico.',
-        'Aorta torácica e tronco pulmonar com calibre normal.',
+        '', textoPerfusao,
+        ...(anMiocardioText.includes('Não se identifica realce tardio')
+          ? ['Não se identifica realce tardio miocárdico.']
+          : anMiocardioText.split('\n')),
+        textoValvas,
+        textoPericardio,
+        textoAortaPulmonar,
         '', 'Comentários', '',
         ...resumo, ...rodape,
       ]
@@ -700,7 +790,7 @@ export default function CardiacCalculator() {
         return '<p style="margin:0;line-height:1.5;font-weight:bold">' + t + '</p>'
       return '<p style="margin:0;line-height:1.5">' + t + '</p>'
     }).join('')
-  }, [sexo, asc, veResults, vdResults, aeResults, adResults, ecvResults, ecvClassif, cl, fmt, mascara, veDdf, veEspSepto, veEspInferior, aeDiamAp, t1MioPre, t1SanguePre, t1MioPos, t1SanguePos, t2Nativo, t2Estrela, campoMag, tipoRef, volumeDiff, firestoreMasks, anMiocardioText])
+  }, [sexo, asc, veResults, vdResults, aeResults, adResults, ecvResults, ecvClassif, cl, fmt, mascara, veDdf, veEspSepto, veEspInferior, aeDiamAp, t1MioPre, t1SanguePre, t1MioPos, t1SanguePos, t2Nativo, t2Estrela, campoMag, tipoRef, volumeDiff, firestoreMasks, anMiocardioText, textoPerfusao, textoValvas, textoPericardio, textoAortaPulmonar])
 
   // ── Report actions ──
   const copiarLaudo = async () => {
@@ -903,7 +993,7 @@ export default function CardiacCalculator() {
             ← RadiologyhHub
           </Link>
           <span className="text-[var(--border2)]">|</span>
-          <h1 className="text-base sm:text-lg font-bold text-[var(--text)]">RM Cardíaca</h1>
+          <h1 className="text-base sm:text-lg font-bold text-[var(--text)]">Gerador de Laudo · RM Cardíaca</h1>
         </div>
         <div className="flex items-center gap-3">
           <button
@@ -914,7 +1004,7 @@ export default function CardiacCalculator() {
             {isLight ? '🌙' : '☀️'}
           </button>
           <span className="text-[10px] font-mono text-[var(--text3)] border border-[var(--border)] px-2 py-1 rounded-full tracking-wider uppercase hidden sm:inline">
-            v10 &middot; Laudo Assistido
+            v11 &middot; Gerador de Laudo
           </span>
         </div>
       </header>
@@ -1165,6 +1255,141 @@ export default function CardiacCalculator() {
 
           <CollapsibleCard title="Análise do Miocárdio" icon="🫀" defaultOpen={false}>
             <AnaliseMiocardio onTextChange={handleMiocardioChange} />
+          </CollapsibleCard>
+
+          {/* Perfusion */}
+          <CollapsibleCard title="Perfusão" defaultOpen={false}>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" checked={perfStress} onChange={e => setPerfStress(e.target.checked)} className="w-4 h-4 accent-[var(--accent)]" />
+              <span className="text-sm font-medium text-[var(--text)]">Estudo com estresse farmacológico</span>
+            </label>
+            <div className="mt-3 rounded-lg p-3 text-xs leading-relaxed border" style={{ backgroundColor: 'var(--bg2, var(--surface2))', borderColor: 'var(--border)', color: 'var(--text2)' }}>
+              <span className="font-bold text-[10px] uppercase tracking-wider block mb-1" style={{ color: 'var(--accent)' }}>Texto gerado:</span>
+              {textoPerfusao}
+            </div>
+          </CollapsibleCard>
+
+          {/* Valves */}
+          <CollapsibleCard title="Valvas" defaultOpen={false}>
+            <div className="space-y-2">
+              {([
+                { label: 'Aórtica', state: valvaAortica, setter: setValvaAortica },
+                { label: 'Mitral', state: valvaMitral, setter: setValvaMitral },
+                { label: 'Tricúspide', state: valvaTricuspide, setter: setValvaTricuspide },
+                { label: 'Pulmonar', state: valvaPulmonar, setter: setValvaPulmonar },
+              ] as { label: string; state: ValveState; setter: (v: ValveState) => void }[]).map(({ label, state, setter }) => (
+                <div key={label} className="flex items-center gap-3">
+                  <label className="flex items-center gap-2 cursor-pointer min-w-[130px]">
+                    <input
+                      type="checkbox"
+                      checked={state.alterada}
+                      onChange={e => setter({ alterada: e.target.checked, refluxo: e.target.checked ? 'discreto' : '' })}
+                      className="w-4 h-4 accent-[var(--accent)]"
+                    />
+                    <span className="text-sm font-medium text-[var(--text)]">{label}</span>
+                  </label>
+                  {state.alterada && (
+                    <select
+                      className={`${selectCls} text-xs py-1.5 flex-1`}
+                      value={state.refluxo}
+                      onChange={e => setter({ ...state, refluxo: e.target.value })}
+                    >
+                      <option value="discreto">Refluxo discreto</option>
+                      <option value="moderado">Refluxo moderado</option>
+                      <option value="importante">Refluxo importante</option>
+                    </select>
+                  )}
+                </div>
+              ))}
+            </div>
+            <div className="mt-3 rounded-lg p-3 text-xs leading-relaxed border" style={{ backgroundColor: 'var(--bg2, var(--surface2))', borderColor: 'var(--border)', color: 'var(--text2)' }}>
+              <span className="font-bold text-[10px] uppercase tracking-wider block mb-1" style={{ color: 'var(--accent)' }}>Texto gerado:</span>
+              {textoValvas}
+            </div>
+          </CollapsibleCard>
+
+          {/* Pericardium */}
+          <CollapsibleCard title="Pericárdio" defaultOpen={false}>
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={pericardioNormal}
+                  onChange={e => {
+                    setPericardioNormal(e.target.checked)
+                    if (e.target.checked) { setPericardioEspessamento(false); setPericardioDerrame(false) }
+                  }}
+                  className="w-4 h-4 accent-[var(--accent)]"
+                />
+                <span className="text-sm font-medium text-[var(--text)]">Normal</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={pericardioEspessamento}
+                  onChange={e => {
+                    setPericardioEspessamento(e.target.checked)
+                    if (e.target.checked) setPericardioNormal(false)
+                  }}
+                  className="w-4 h-4 accent-[var(--accent)]"
+                />
+                <span className="text-sm font-medium text-[var(--text)]">Espessamento pericárdico</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={pericardioDerrame}
+                  onChange={e => {
+                    setPericardioDerrame(e.target.checked)
+                    if (e.target.checked) setPericardioNormal(false)
+                  }}
+                  className="w-4 h-4 accent-[var(--accent)]"
+                />
+                <span className="text-sm font-medium text-[var(--text)]">Derrame pericárdico</span>
+              </label>
+            </div>
+            <div className="mt-3 rounded-lg p-3 text-xs leading-relaxed border" style={{ backgroundColor: 'var(--bg2, var(--surface2))', borderColor: 'var(--border)', color: 'var(--text2)' }}>
+              <span className="font-bold text-[10px] uppercase tracking-wider block mb-1" style={{ color: 'var(--accent)' }}>Texto gerado:</span>
+              {textoPericardio}
+            </div>
+          </CollapsibleCard>
+
+          {/* Aorta & Pulmonary Trunk */}
+          <CollapsibleCard title="Aorta e Tronco Pulmonar" defaultOpen={false}>
+            <label className="flex items-center gap-2 cursor-pointer mb-3">
+              <input type="checkbox" checked={aortaAlterada} onChange={e => setAortaAlterada(e.target.checked)} className="w-4 h-4 accent-[var(--accent)]" />
+              <span className="text-sm font-medium text-[var(--text)]">Descrever diâmetros aórticos</span>
+            </label>
+            {aortaAlterada && (
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className={labelCls}>Bulbo (cm) <span className="text-[var(--text3)] font-normal">VN ≤ 4,0</span></label>
+                    <input type="number" step="0.1" className={inputCls} value={aortaBulbo} onChange={e => setAortaBulbo(e.target.value)} />
+                  </div>
+                  <div>
+                    <label className={labelCls}>Ascendente (cm) <span className="text-[var(--text3)] font-normal">VN ≤ 4,0</span></label>
+                    <input type="number" step="0.1" className={inputCls} value={aortaAscendente} onChange={e => setAortaAscendente(e.target.value)} />
+                  </div>
+                  <div>
+                    <label className={labelCls}>Crossa (cm) <span className="text-[var(--text3)] font-normal">VN ≤ 3,5</span></label>
+                    <input type="number" step="0.1" className={inputCls} value={aortaCrossa} onChange={e => setAortaCrossa(e.target.value)} />
+                  </div>
+                  <div>
+                    <label className={labelCls}>Descendente (cm) <span className="text-[var(--text3)] font-normal">VN ≤ 3,0</span></label>
+                    <input type="number" step="0.1" className={inputCls} value={aortaDescendente} onChange={e => setAortaDescendente(e.target.value)} />
+                  </div>
+                </div>
+                <div>
+                  <label className={labelCls}>Tronco Pulmonar (cm) <span className="text-[var(--text3)] font-normal">VN ≤ 3,0</span></label>
+                  <input type="number" step="0.1" className={inputCls} value={troncoPulmonar} onChange={e => setTroncoPulmonar(e.target.value)} />
+                </div>
+              </div>
+            )}
+            <div className="mt-3 rounded-lg p-3 text-xs leading-relaxed border whitespace-pre-line" style={{ backgroundColor: 'var(--bg2, var(--surface2))', borderColor: 'var(--border)', color: 'var(--text2)' }}>
+              <span className="font-bold text-[10px] uppercase tracking-wider block mb-1" style={{ color: 'var(--accent)' }}>Texto gerado:</span>
+              {textoAortaPulmonar}
+            </div>
           </CollapsibleCard>
         </div>
 
