@@ -72,8 +72,7 @@ const CALCULADORAS_POR_SPEC: Record<string, Array<{nome: string, descricao: stri
 
 const GERADORES_POR_SPEC: Record<string, Array<{nome: string, descricao: string, link?: string}>> = {
   neuro: [
-    { nome: 'RM Encéfalo', descricao: 'Gerador de laudo de RM de crânio' },
-    { nome: 'TC Crânio', descricao: 'Gerador de laudo de TC de crânio' }
+    { nome: 'Laudo Neuro', descricao: 'TC e RM de crânio, angio cervical/intracraniana/venosa', link: '/calculadora/laudo-neuro' },
   ],
   cn: [
     { nome: 'RM Pescoço', descricao: 'Gerador de laudo de RM cervical' },
