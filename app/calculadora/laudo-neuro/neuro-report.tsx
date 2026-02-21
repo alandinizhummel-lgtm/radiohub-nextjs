@@ -1,7 +1,33 @@
 'use client'
 
 import { useState, useMemo, useCallback, useRef } from 'react'
-import CalculatorLayout, { Section } from '@/app/calculadora/components/calculator-layout'
+import CalculatorLayout from '@/app/calculadora/components/calculator-layout'
+
+// Accordion Card — only one open at a time
+function Card({ id, activeCard, setActiveCard, title, badge, children }: {
+  id: string; activeCard: string; setActiveCard: (id: string) => void
+  title: string; badge?: string; children: React.ReactNode
+}) {
+  const open = activeCard === id
+  return (
+    <div className="rounded-xl border overflow-hidden transition-all" style={{ borderColor: open ? 'var(--accent)' : 'var(--border)' }}>
+      <button type="button" onClick={() => setActiveCard(open ? '' : id)}
+        className="w-full flex items-center justify-between px-4 py-2.5 text-left transition-all"
+        style={{ backgroundColor: open ? 'var(--accent)0D' : 'transparent' }}>
+        <span className="text-xs font-bold" style={{ color: open ? 'var(--accent)' : 'var(--text2)' }}>{title}</span>
+        <div className="flex items-center gap-2">
+          {badge && <span className="text-[9px] px-1.5 py-0.5 rounded-full font-bold" style={{ backgroundColor: 'var(--accent)22', color: 'var(--accent)' }}>{badge}</span>}
+          <span className="text-[10px] transition-transform" style={{ color: 'var(--text3)', transform: open ? 'rotate(0deg)' : 'rotate(-90deg)', transition: 'transform 0.2s' }}>&#9660;</span>
+        </div>
+      </button>
+      <div style={{ display: 'grid', gridTemplateRows: open ? '1fr' : '0fr', transition: 'grid-template-rows 0.25s ease' }}>
+        <div style={{ overflow: 'hidden' }}>
+          <div className="px-4 pb-3 pt-1">{children}</div>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 // ══════════════════════════════════════════════════════════
 // Types
@@ -210,6 +236,9 @@ export default function NeuroReport() {
   const [angioCervical, setAngioCervical] = useState(false)
   const [angioIntra, setAngioIntra] = useState(false)
   const [angioVen, setAngioVen] = useState(false)
+
+  // ── Accordion state ──
+  const [activeCard, setActiveCard] = useState('tecnica')
 
   // ── Artefatos ──
   const [artMovimento, setArtMovimento] = useState(false)
@@ -853,6 +882,122 @@ export default function NeuroReport() {
   }
 
   // ══════════════════════════════════════════════════════════
+  // ══════════════════════════════════════════════════════════
+  // CONCLUSÃO
+  // ══════════════════════════════════════════════════════════
+
+  const textoConclusao = useMemo(() => {
+    const conc: string[] = []
+    const isRM = exame === 'rm'
+
+    // Normal cranio
+    if (temCranio && !hasCranioSelections) {
+      conc.push(isRM ? 'Exame do encéfalo dentro dos limites da normalidade.' : 'Exame do encéfalo dentro dos limites da normalidade.')
+    } else if (temCranio) {
+      // Atrofia / HPN
+      if (atrofia) conc.push('Sinais de redução volumétrica encefálica.')
+      if (hpn) conc.push('Achados que podem ser observados nos distúrbios da dinâmica do fluxo liquórico (hidrocefalia de pressão normal), em contexto clínico compatível.')
+
+      // Substância branca
+      if (sbMode === 'pronto' && sbPronto) {
+        if (sbPronto === 'tenues' || sbPronto === 'discretas_perivent') {
+          conc.push('Focos de alteração de sinal na substância branca, inespecíficos, podendo estar relacionados a microangiopatia / gliose.')
+        } else if (sbPronto === 'confluentes' || sbPronto === 'extensas') {
+          conc.push('Alterações de sinal na substância branca dos hemisférios cerebrais, de aspecto inespecífico, com distribuição sugestiva de doença de pequenos vasos / microangiopatia.')
+        } else if (sbPronto === 'inespecificas') {
+          conc.push('Focos de alteração de sinal na substância branca, inespecíficos, frequentemente relacionados a gliose/rarefação de mielina.')
+        }
+      } else if (sbMode === 'construir' && (sbConfluentes || sbDifusas || sbCornAnt || sbAtrios || sbCentrosSO || sbEsparsas || sbCorRad || sbSubcort || sbMaisRaras || sbRegFP || sbSubins)) {
+        conc.push('Alterações de sinal na substância branca, inespecíficas, podendo estar relacionadas a microangiopatia / gliose.')
+      }
+
+      // Lacunas/EPVA
+      if (epvaQtd) conc.push('Espaços perivasculares proeminentes.')
+      if (lacunas) conc.push('Lacunas isquêmicas.')
+
+      // Hipocampos
+      if (hipocampos === 'alt_bilat') conc.push('Sinais de esclerose hipocampal bilateral (correlacionar com dados clínicos).')
+      else if (hipocampos === 'alt_dir') conc.push('Sinais de esclerose hipocampal à direita (correlacionar com dados clínicos).')
+      else if (hipocampos === 'alt_esq') conc.push('Sinais de esclerose hipocampal à esquerda (correlacionar com dados clínicos).')
+
+      // Calcificações
+      if (calcPalidais) conc.push('Calcificações palidais fisiológicas.')
+
+      // Hiperostose
+      if (hipFrontal || hipParietal) conc.push('Hiperostose benigna.')
+
+      // Sela
+      if (selaVazia) conc.push('Sela parcialmente vazia.')
+      if (hicBenigna) conc.push('Achados que podem ser encontrados na hipertensão intracraniana benigna idiopática.')
+
+      // SPN
+      if (!spnNormal && Object.values(spn).some(s => Object.values(s.dir).some(Boolean) || Object.values(s.esq).some(Boolean))) {
+        conc.push('Alterações inflamatórias/sinusopatia dos seios paranasais.')
+      }
+
+      // Cerebelo
+      if (cerebelo && cerebelo.startsWith('seq')) conc.push('Pequena(s) sequela(s) isquêmica(s) cerebelar(es).')
+
+      // If has selections but nothing generated a conclusion yet
+      if (conc.length === 0) {
+        conc.push('Demais achados conforme descritos.')
+      }
+    }
+
+    // Angio arterial
+    if (temAngioArterial) {
+      if (angioGeral === 'normal' && vasos.length === 0) {
+        const reg = angioCervical && angioIntra ? 'cervicais e intracranianos' : angioCervical ? 'cervicais' : 'intracranianos'
+        conc.push(`Estudo angiográfico dos vasos ${reg} dentro dos limites da normalidade.`)
+      } else {
+        // Check for specific vaso findings
+        const temAneurisma = vasos.some(v => v.aneurisma)
+        const temEstenose = vasos.some(v => (v.placa1Estenose && v.placa1Estenose !== 'sem') || (v.placa2Estenose && v.placa2Estenose !== 'sem'))
+        const temDisseccao = vasos.some(v => v.disseccao)
+        const temObstrucao = vasos.some(v => v.obstrucao)
+
+        if (temAneurisma) {
+          const aneurismas = vasos.filter(v => v.aneurisma)
+          for (const a of aneurismas) {
+            const nome = a.vaso + (a.lado ? ` ${a.lado}` : '')
+            const tipo = a.aneurisma === 'sacular' ? 'sacular' : 'fusiforme'
+            let desc = `Dilatação aneurismática ${tipo} da ${nome}`
+            if (a.aneurismaDiam) desc += ` (${a.aneurismaDiam} cm)`
+            conc.push(desc + '.')
+          }
+        }
+        if (temEstenose) conc.push('Estenose(s) vascular(es) conforme descrito(s).')
+        if (temDisseccao) conc.push('Sinais de dissecção vascular conforme descrito.')
+        if (temObstrucao) conc.push('Obstrução vascular conforme descrito.')
+
+        if (angioGeral === 'leve_tort' || angioGeral === 'tortuoso' || angioGeral === 'esp_par') {
+          conc.push('Sinais de ateromatose / alongamento e tortuosidade vascular.')
+        }
+      }
+
+      // Variações
+      const vars: string[] = []
+      if (vertDom) vars.push(`dominância vertebral à ${vertDom === 'dir' ? 'direita' : 'esquerda'}`)
+      if (circFetal) vars.push(`circulação fetal ${circFetal === 'bilat' ? 'bilateral' : `à ${circFetal === 'dir' ? 'direita' : 'esquerda'}`}`)
+      if (a1Hipoplasia) vars.push(`hipoplasia do segmento A1 à ${a1Hipoplasia === 'dir' ? 'direita' : 'esquerda'}`)
+      if (fenestBasilar) vars.push('fenestração basilar')
+      if (artTrigeminal) vars.push('artéria trigeminal persistente')
+      if (azigus) vars.push('ACA ázigos')
+      if (vars.length > 0) conc.push(`Variações da normalidade: ${vars.join(', ')}.`)
+    }
+
+    // Angio venosa
+    if (angioVen) {
+      if (venNormal && !venTrombose) {
+        conc.push('Seios venosos intracranianos pérvios.')
+      }
+      if (venTrombose) conc.push('Sinais de trombose venosa intracraniana.')
+      if (venAssimTransvDir || venAssimTransvEsq) conc.push(`Assimetria dos seios transversos com dominância à ${venAssimTransvDir ? 'direita' : 'esquerda'} (variação da normalidade).`)
+    }
+
+    return conc.join('\n')
+  }, [exame, temCranio, hasCranioSelections, atrofia, hpn, sbMode, sbPronto, sbConfluentes, sbDifusas, sbCornAnt, sbAtrios, sbCentrosSO, sbEsparsas, sbCorRad, sbSubcort, sbMaisRaras, sbRegFP, sbSubins, epvaQtd, lacunas, hipocampos, calcPalidais, hipFrontal, hipParietal, selaVazia, hicBenigna, spnNormal, spn, cerebelo, temAngioArterial, angioGeral, vasos, angioCervical, angioIntra, vertDom, circFetal, a1Hipoplasia, fenestBasilar, artTrigeminal, azigus, angioVen, venNormal, venTrombose, venAssimTransvDir, venAssimTransvEsq])
+
   // Copy functions — rich HTML for Word/Docs compatibility
   // ══════════════════════════════════════════════════════════
 
@@ -886,7 +1031,7 @@ export default function NeuroReport() {
     setTimeout(() => setCopied(''), 2000)
   }, [])
 
-  const fullText = `${titulo}\n\nTÉCNICA:\n${textoTecnica}\n\nACHADOS:\n${textoAchados}`
+  const fullText = `${titulo}\n\nTÉCNICA:\n${textoTecnica}\n\nACHADOS:\n${textoAchados}\n\nCONCLUSÃO:\n${textoConclusao}`
 
   // ══════════════════════════════════════════════════════════
   // Vaso & SPN management
@@ -924,7 +1069,7 @@ export default function NeuroReport() {
         <div className="space-y-2">
 
           {/* Exame e Técnica — now with checkboxes for combined exams */}
-          <Section title="Exame e Técnica" defaultOpen>
+          <Card id="tecnica" activeCard={activeCard} setActiveCard={setActiveCard} title="Exame e Técnica">
             <div className="space-y-3">
               <Radio value={exame} onChange={setExame} label="Modalidade"
                 options={[{ v: 'tc', l: 'TC' }, { v: 'rm', l: 'RM' }]} />
@@ -943,22 +1088,22 @@ export default function NeuroReport() {
                 Marque todos os componentes do exame. Ex: TC Crânio + Angio cervical + Angio intracraniana + Angio venosa.
               </div>
             </div>
-          </Section>
+          </Card>
 
           {/* ── CRÂNIO SECTIONS ── */}
           {temCranio && <>
             {/* Artefatos */}
-            <Section title="Artefatos" defaultOpen={false}>
+            <Card id="artefatos" activeCard={activeCard} setActiveCard={setActiveCard} title="Artefatos">
               <Chk checked={artMovimento} onChange={setArtMovimento} label="Artefatos de movimento" />
               <Chk checked={artSuscep} onChange={setArtSuscep} label="Susceptibilidade magnética (arcadas dentárias)" />
               <div className="mt-2">
                 <span className="text-[10px] font-semibold" style={{ color: 'var(--text3)' }}>Comentário:</span>
                 <Txt value={comentario1} onChange={setComentario1} placeholder="Texto livre..." />
               </div>
-            </Section>
+            </Card>
 
             {/* Espaços liquóricos */}
-            <Section title="Espaços Liquóricos" defaultOpen={false}>
+            <Card id="liquoricos" activeCard={activeCard} setActiveCard={setActiveCard} title="Espaços Liquóricos">
               <div className="space-y-2">
                 <div className="rounded-lg p-2 text-[10px]" style={{ backgroundColor: 'var(--accent)0D', color: 'var(--accent)' }}>
                   Se nada for marcado, o laudo virá com máscara normal.
@@ -985,10 +1130,10 @@ export default function NeuroReport() {
                 <Chk checked={demaisSulcosNorm} onChange={setDemaisSulcosNorm} label="Demais sulcos normais" />
                 <Chk checked={restanteSVNorm} onChange={setRestanteSVNorm} label="Restante do SV normal" />
               </div>
-            </Section>
+            </Card>
 
             {/* Substância branca */}
-            <Section title="Substância Branca" defaultOpen={false}>
+            <Card id="sb" activeCard={activeCard} setActiveCard={setActiveCard} title="Substância Branca">
               <div className="space-y-2">
                 <Radio value={sbMode} onChange={setSbMode} label="Modo"
                   options={[{ v: 'pronto', l: 'Frases prontas' }, { v: 'construir', l: 'Construir frase' }]} />
@@ -1023,15 +1168,15 @@ export default function NeuroReport() {
                   </div>
                 )}
               </div>
-            </Section>
+            </Card>
 
             {/* Comentário 2 */}
-            <Section title="Comentário Adicional" defaultOpen={false}>
+            <Card id="comentario2" activeCard={activeCard} setActiveCard={setActiveCard} title="Comentário Adicional">
               <Txt value={comentario2} onChange={setComentario2} placeholder="Texto livre entre SB e EPVA..." rows={2} />
-            </Section>
+            </Card>
 
             {/* Lacunas / EPVA */}
-            <Section title="Lacunas / Espaços Perivasculares" defaultOpen={false}>
+            <Card id="epva" activeCard={activeCard} setActiveCard={setActiveCard} title="Lacunas / Espaços Perivasculares">
               <div className="space-y-2">
                 <Radio value={epvaQtd} onChange={setEpvaQtd} label="Quantidade"
                   options={[{ v: '' as any, l: 'Sem' }, { v: 'focos', l: 'Focos' }, { v: 'alguns', l: 'Alguns' }, { v: 'multiplos', l: 'Múltiplos' }]} />
@@ -1053,10 +1198,10 @@ export default function NeuroReport() {
                 )}
                 <Chk checked={lacunas} onChange={setLacunas} label="Lacunas" />
               </div>
-            </Section>
+            </Card>
 
             {/* Cerebelo */}
-            <Section title="Cerebelo" defaultOpen={false}>
+            <Card id="cerebelo" activeCard={activeCard} setActiveCard={setActiveCard} title="Cerebelo">
               <div className="space-y-1">
                 {[
                   { v: 'seq_dir', l: 'Sequela / fissura alargada — hemisfério D' },
@@ -1069,10 +1214,10 @@ export default function NeuroReport() {
                   <Chk key={o.v} checked={cerebelo === o.v} onChange={c => setCerebelo(c ? o.v : '')} label={o.l} />
                 ))}
               </div>
-            </Section>
+            </Card>
 
             {/* Hipocampos */}
-            <Section title="Hipocampos" defaultOpen={false}>
+            <Card id="hipocampos" activeCard={activeCard} setActiveCard={setActiveCard} title="Hipocampos">
               <div className="space-y-1">
                 {[
                   { v: 'normais', l: 'Normais' },
@@ -1087,27 +1232,27 @@ export default function NeuroReport() {
                   <Chk key={o.v} checked={hipocampos === o.v} onChange={c => setHipocampos(c ? o.v : '')} label={o.l} />
                 ))}
               </div>
-            </Section>
+            </Card>
 
             {/* Parênquima / Difusão + Comentário 3 */}
-            <Section title="Parênquima / Difusão" defaultOpen={false}>
+            <Card id="parenquima" activeCard={activeCard} setActiveCard={setActiveCard} title="Parênquima / Difusão">
               <Txt value={comentario3} onChange={setComentario3} placeholder="Comentário livre..." rows={2} />
-            </Section>
+            </Card>
 
             {/* Calcificações */}
-            <Section title="Calcificações" defaultOpen={false}>
+            <Card id="calcif" activeCard={activeCard} setActiveCard={setActiveCard} title="Calcificações">
               <Chk checked={calcPalidais} onChange={setCalcPalidais} label="Calcificações palidais (habitual na faixa etária)" />
               {exame === 'rm' && <Chk checked={sbstParamag} onChange={setSbstParamag} label="Hipossinal SWI nos lentiformes (depósito minerais)" />}
-            </Section>
+            </Card>
 
             {/* Hiperostose */}
-            <Section title="Hiperostose" defaultOpen={false}>
+            <Card id="hiperostose" activeCard={activeCard} setActiveCard={setActiveCard} title="Hiperostose">
               <Chk checked={hipFrontal} onChange={setHipFrontal} label="Frontal" />
               <Chk checked={hipParietal} onChange={setHipParietal} label="Parietal" />
-            </Section>
+            </Card>
 
             {/* Sela túrcica */}
-            <Section title="Sela Túrcica / HIC" defaultOpen={false}>
+            <Card id="sela" activeCard={activeCard} setActiveCard={setActiveCard} title="Sela Túrcica / HIC">
               <div className="space-y-1">
                 <Chk checked={selaVazia} onChange={setSelaVazia} label="Sela parcialmente vazia" />
                 {selaVazia && <Chk checked={selaPacIdoso} onChange={setSelaPacIdoso} label="Achado frequente na faixa etária" indent={1} />}
@@ -1117,15 +1262,15 @@ export default function NeuroReport() {
                 <Chk checked={iiiVentrFenda} onChange={setIiiVentrFenda} label="III ventrículo em fenda" />
                 <Chk checked={hicBenigna} onChange={setHicBenigna} label="Achados podem ser encontrados na HIC benigna idiopática" />
               </div>
-            </Section>
+            </Card>
 
             {/* Ossos */}
-            <Section title="Ossos da Calota" defaultOpen={false}>
+            <Card id="ossos" activeCard={activeCard} setActiveCard={setActiveCard} title="Ossos da Calota">
               <Txt value={lesaoOssea} onChange={setLesaoOssea} placeholder="Lesão óssea (texto livre)..." />
-            </Section>
+            </Card>
 
             {/* SPN */}
-            <Section title="Seios Paranasais" defaultOpen={false}>
+            <Card id="spn" activeCard={activeCard} setActiveCard={setActiveCard} title="Seios Paranasais">
               <div className="space-y-3">
                 <Chk checked={spnNormal} onChange={setSpnNormal} label="Normal (aeração preservada)" />
                 {!spnNormal && SEIOS.map(seio => (
@@ -1154,10 +1299,10 @@ export default function NeuroReport() {
                   </div>
                 ))}
               </div>
-            </Section>
+            </Card>
 
             {/* Mastoides */}
-            <Section title="Mastoides" defaultOpen={false}>
+            <Card id="mastoides" activeCard={activeCard} setActiveCard={setActiveCard} title="Mastoides">
               <div className="space-y-1">
                 <Chk checked={mastoidesNormal} onChange={setMastoidesNormal} label="Aeradas (normal)" />
                 <Chk checked={mastHipopneuBilat} onChange={setMastHipopneuBilat} label="Hipopneumatizadas bilateral" />
@@ -1176,18 +1321,18 @@ export default function NeuroReport() {
                   <Chk checked={mastNivelLiq} onChange={setMastNivelLiq} label="Com níveis líquidos" indent={1} />
                 </>}
               </div>
-            </Section>
+            </Card>
 
             {/* Facectomia */}
-            <Section title="Achados Adicionais" defaultOpen={false}>
+            <Card id="adicionais" activeCard={activeCard} setActiveCard={setActiveCard} title="Achados Adicionais">
               <Radio value={facectomia} onChange={setFacectomia} label="Facectomia"
                 options={[{ v: '' as any, l: 'Sem' }, { v: 'bilateral', l: 'Bilateral' }, { v: 'direita', l: 'Direita' }, { v: 'esquerda', l: 'Esquerda' }]} />
-            </Section>
+            </Card>
           </>}
 
           {/* ── ANGIO ARTERIAL ── */}
           {temAngioArterial && (
-            <Section title={`Angio Arterial${angioCervical && angioIntra ? ' (Cervical + Intracraniana)' : angioCervical ? ' (Cervical)' : ' (Intracraniana)'}`} defaultOpen>
+            <Card id="angio" activeCard={activeCard} setActiveCard={setActiveCard} title={`Angio Arterial${angioCervical && angioIntra ? ' (Cervical + Intracraniana)' : angioCervical ? ' (Cervical)' : ' (Intracraniana)'}`}>
               <div className="space-y-3">
                 <Radio value={angioGeral} onChange={setAngioGeral} label="Achado geral"
                   options={[
@@ -1287,12 +1432,12 @@ export default function NeuroReport() {
                   <Chk checked={azigus} onChange={setAzigus} label="ACA ázigos" />
                 </div>
               </div>
-            </Section>
+            </Card>
           )}
 
           {/* ── ANGIO VENOSA ── */}
           {angioVen && (
-            <Section title="Angio Venosa" defaultOpen>
+            <Card id="venosa" activeCard={activeCard} setActiveCard={setActiveCard} title="Angio Venosa">
               <div className="space-y-1">
                 <Chk checked={venNormal} onChange={setVenNormal} label="Seios venosos pérvios, normais" />
                 <Chk checked={venAssimTransvDir} onChange={setVenAssimTransvDir} label="Assimetria transverso/sigmoide — dominância D" />
@@ -1301,7 +1446,7 @@ export default function NeuroReport() {
                 {venTrombose && <Txt value={venTromboseLocal} onChange={setVenTromboseLocal} placeholder="Localização da trombose..." />}
                 <Txt value={venComentario} onChange={setVenComentario} placeholder="Comentário..." />
               </div>
-            </Section>
+            </Card>
           )}
         </div>
 
@@ -1328,6 +1473,11 @@ export default function NeuroReport() {
               className="px-4 py-2.5 rounded-xl text-xs font-semibold border transition-all"
               style={{ borderColor: 'var(--border)', color: copied === 'tecnica' ? 'var(--green)' : 'var(--text2)' }}>
               {copied === 'tecnica' ? 'Copiado!' : 'Técnica'}
+            </button>
+            <button type="button" onClick={() => copyRich(textoConclusao, 'conclusao')}
+              className="px-4 py-2.5 rounded-xl text-xs font-semibold border transition-all"
+              style={{ borderColor: 'var(--border)', color: copied === 'conclusao' ? 'var(--green)' : 'var(--text2)' }}>
+              {copied === 'conclusao' ? 'Copiado!' : 'Conclusão'}
             </button>
           </div>
 
@@ -1369,6 +1519,17 @@ export default function NeuroReport() {
                     Laudo normal — nenhum achado patológico selecionado
                   </p>
                 </div>
+              )}
+
+              <div style={{ height: '10pt' }} />
+
+              {/* Conclusão */}
+              <p style={{ fontWeight: 700, fontSize: '11pt', marginBottom: '4pt', color: '#333' }}>CONCLUSÃO:</p>
+              {textoConclusao ? textoConclusao.split('\n').map((line, i) => {
+                if (!line.trim()) return <div key={i} style={{ height: '6pt' }} />
+                return <p key={i} style={{ marginBottom: '4pt', textAlign: 'justify' }}>{line}</p>
+              }) : (
+                <p style={{ color: '#999', fontStyle: 'italic' }}>A conclusão será gerada automaticamente...</p>
               )}
             </div>
           </div>
