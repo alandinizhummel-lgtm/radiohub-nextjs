@@ -29,6 +29,16 @@ function Card({ id, activeCard, setActiveCard, title, badge, children }: {
   )
 }
 
+// Group header for visual section organization
+function GroupHeader({ label, color }: { label: string; color?: string }) {
+  return (
+    <div className="flex items-center gap-2 pt-3 pb-0.5">
+      <span className="text-[10px] font-bold uppercase tracking-wider whitespace-nowrap" style={{ color: color || 'var(--text3)' }}>{label}</span>
+      <div className="flex-1 h-px" style={{ backgroundColor: 'var(--border)' }} />
+    </div>
+  )
+}
+
 // ══════════════════════════════════════════════════════════
 // Types
 // ══════════════════════════════════════════════════════════
@@ -355,6 +365,73 @@ export default function NeuroReport() {
   const [artTrigeminal, setArtTrigeminal] = useState(false)
   const [azigus, setAzigus] = useState(false)
 
+  // ── Hemorragia ──
+  const [hipHem, setHipHem] = useState(false)
+  const [hipHemFase, setHipHemFase] = useState<'' | 'aguda' | 'subaguda'>('')
+  const [hipHemLocal, setHipHemLocal] = useState('')
+  const [hipHemLado, setHipHemLado] = useState<'' | 'direita' | 'esquerda'>('')
+  const [hipHemDim, setHipHemDim] = useState('')
+  const [hipHemEdema, setHipHemEdema] = useState(false)
+  const [hipHemEfeitoMassa, setHipHemEfeitoMassa] = useState(false)
+  const [hipHemInundacao, setHipHemInundacao] = useState(false)
+  const [hipHemNivel, setHipHemNivel] = useState(false)
+
+  const [hsa, setHsa] = useState(false)
+  const [hsaFisher, setHsaFisher] = useState('')
+  const [hsaSulcos, setHsaSulcos] = useState(false)
+  const [hsaCisternas, setHsaCisternas] = useState(false)
+  const [hsaSylviana, setHsaSylviana] = useState(false)
+
+  const [subdural, setSubdural] = useState(false)
+  const [subduralFase, setSubduralFase] = useState<'' | 'agudo' | 'subagudo' | 'cronico'>('')
+  const [subduralLado, setSubduralLado] = useState<'' | 'direita' | 'esquerda' | 'bilateral'>('')
+  const [subduralEsp, setSubduralEsp] = useState('')
+  const [subduralMembrana, setSubduralMembrana] = useState(false)
+
+  const [epidural, setEpidural] = useState(false)
+  const [epiduralLado, setEpiduralLado] = useState<'' | 'direita' | 'esquerda'>('')
+  const [epiduralLocal, setEpiduralLocal] = useState('')
+  const [epiduralEsp, setEpiduralEsp] = useState('')
+
+  const [hiv, setHiv] = useState(false)
+  const [hemComentario, setHemComentario] = useState('')
+
+  // ── AVC Isquêmico ──
+  const [avcAgudo, setAvcAgudo] = useState(false)
+  const [avcTerritorio, setAvcTerritorio] = useState('')
+  const [avcLado, setAvcLado] = useState<'' | 'direita' | 'esquerda'>('')
+  const [avcRestricao, setAvcRestricao] = useState(false)
+  const [avcTransfHem, setAvcTransfHem] = useState(false)
+  const [avcComentario, setAvcComentario] = useState('')
+
+  const [sequelaIsq, setSequelaIsq] = useState(false)
+  const [sequelaLocal, setSequelaLocal] = useState('')
+  const [sequelaLado, setSequelaLado] = useState<'' | 'direita' | 'esquerda' | 'bilateral'>('')
+
+  // ── Lesão Expansiva ──
+  const [lesaoExp, setLesaoExp] = useState(false)
+  const [lesaoExpTipo, setLesaoExpTipo] = useState<'' | 'intra' | 'extra'>('')
+  const [lesaoExpLocal, setLesaoExpLocal] = useState('')
+  const [lesaoExpLado, setLesaoExpLado] = useState<'' | 'direita' | 'esquerda' | 'mediana'>('')
+  const [lesaoExpDim, setLesaoExpDim] = useState('')
+  const [lesaoExpRealce, setLesaoExpRealce] = useState<'' | 'homogeneo' | 'heterogeneo' | 'anelar' | 'ausente'>('')
+  const [lesaoExpEdema, setLesaoExpEdema] = useState(false)
+  const [lesaoExpEfeitoMassa, setLesaoExpEfeitoMassa] = useState(false)
+  const [lesaoExpRestricao, setLesaoExpRestricao] = useState(false)
+  const [lesaoExpComentario, setLesaoExpComentario] = useState('')
+
+  // ── Linha Média / Efeito de massa ──
+  const [desvioLM, setDesvioLM] = useState<'' | 'direita' | 'esquerda'>('')
+  const [desvioLMmm, setDesvioLMmm] = useState('')
+  const [hernSubfalc, setHernSubfalc] = useState(false)
+  const [hernTranstent, setHernTranstent] = useState<'' | 'desc' | 'asc'>('')
+  const [hernTonsilar, setHernTonsilar] = useState(false)
+  const [apagCisternas, setApagCisternas] = useState(false)
+
+  // ── Realce pós-contraste ──
+  const [realceMeningeo, setRealceMeningeo] = useState<'' | 'paquimeningeo' | 'leptomeningeo'>('')
+  const [realceComentario, setRealceComentario] = useState('')
+
   // ── Angio venosa ──
   const [venNormal, setVenNormal] = useState(false)
   const [venAssimTransvDir, setVenAssimTransvDir] = useState(false)
@@ -371,6 +448,17 @@ export default function NeuroReport() {
 
   const hasCranioSelections = useMemo(() => {
     return artMovimento || artSuscep || comentario1.trim() !== '' ||
+      // Hemorragia
+      hipHem || hsa || subdural || epidural || hiv || hemComentario.trim() !== '' ||
+      // AVC
+      avcAgudo || sequelaIsq ||
+      // Lesão expansiva
+      lesaoExp ||
+      // Linha média
+      desvioLM !== '' || hernSubfalc || hernTranstent !== '' || hernTonsilar || apagCisternas ||
+      // Realce
+      realceMeningeo !== '' || realceComentario.trim() !== '' ||
+      // Espaços liquóricos
       sulcos !== '' || ventriculos !== '' || fossaPost || atrofia || hpn || assimVL !== '' ||
       coaptDir || coaptEsq || cavoPelucido || cavoVerga || cavoVeu || demaisSulcosNorm || restanteSVNorm || cistoAracnoide ||
       (sbMode === 'pronto' && sbPronto !== '') ||
@@ -382,7 +470,7 @@ export default function NeuroReport() {
       lesaoOssea.trim() !== '' || facectomia !== '' ||
       !spnNormal && Object.values(spn).some(s => Object.values(s.dir).some(Boolean) || Object.values(s.esq).some(Boolean)) ||
       mastoidesNormal || mastHipopneuBilat || mastHipopneuDir || mastHipopneuEsq || mastEburneo || mastApiceDir || mastApiceEsq || mastOblit || mastDelineamento
-  }, [artMovimento, artSuscep, comentario1, sulcos, ventriculos, fossaPost, atrofia, hpn, assimVL, coaptDir, coaptEsq, cavoPelucido, cavoVerga, cavoVeu, demaisSulcosNorm, restanteSVNorm, cistoAracnoide, sbMode, sbPronto, sbConfluentes, sbDifusas, sbCornAnt, sbAtrios, sbCentrosSO, sbEsparsas, sbCorRad, sbSubcort, sbMaisRaras, sbRegFP, sbSubins, epvaQtd, lacunas, cerebelo, hipocampos, comentario2, comentario3, calcPalidais, sbstParamag, hipFrontal, hipParietal, selaVazia, nervosOpt, seiosVenAfilados, cavosMeckel, iiiVentrFenda, hicBenigna, lesaoOssea, facectomia, spnNormal, spn, mastoidesNormal, mastHipopneuBilat, mastHipopneuDir, mastHipopneuEsq, mastEburneo, mastApiceDir, mastApiceEsq, mastOblit, mastDelineamento])
+  }, [artMovimento, artSuscep, comentario1, hipHem, hsa, subdural, epidural, hiv, hemComentario, avcAgudo, sequelaIsq, lesaoExp, desvioLM, hernSubfalc, hernTranstent, hernTonsilar, apagCisternas, realceMeningeo, realceComentario, sulcos, ventriculos, fossaPost, atrofia, hpn, assimVL, coaptDir, coaptEsq, cavoPelucido, cavoVerga, cavoVeu, demaisSulcosNorm, restanteSVNorm, cistoAracnoide, sbMode, sbPronto, sbConfluentes, sbDifusas, sbCornAnt, sbAtrios, sbCentrosSO, sbEsparsas, sbCorRad, sbSubcort, sbMaisRaras, sbRegFP, sbSubins, epvaQtd, lacunas, cerebelo, hipocampos, comentario2, comentario3, calcPalidais, sbstParamag, hipFrontal, hipParietal, selaVazia, nervosOpt, seiosVenAfilados, cavosMeckel, iiiVentrFenda, hicBenigna, lesaoOssea, facectomia, spnNormal, spn, mastoidesNormal, mastHipopneuBilat, mastHipopneuDir, mastHipopneuEsq, mastEburneo, mastApiceDir, mastApiceEsq, mastOblit, mastDelineamento])
 
   // ══════════════════════════════════════════════════════════
   // TEXT GENERATION
@@ -447,6 +535,125 @@ export default function NeuroReport() {
 
         // Comentário livre 1
         if (comentario1.trim()) parts.push(comentario1.trim())
+
+        // ── HEMORRAGIA ──
+        if (hipHem) {
+          const faseMap: Record<string, string> = { aguda: isRM ? 'Área com sinal compatível com hemorragia aguda' : 'Coleção hemática hiperdensa (aguda)', subaguda: isRM ? 'Área com sinal compatível com hemorragia subaguda' : 'Coleção hemática (subaguda)' }
+          const localMap: Record<string, string> = {
+            lobar_frontal: 'no lobo frontal', lobar_parietal: 'no lobo parietal', lobar_temporal: 'no lobo temporal', lobar_occipital: 'no lobo occipital',
+            nucleocapsular: 'na região nucleocapsular', talamica: 'na região talâmica',
+            cerebelar: 'no hemisfério cerebelar', pontina: 'na ponte', mesencefalica: 'no mesencéfalo',
+          }
+          let s = faseMap[hipHemFase] || (isRM ? 'Coleção hemática intraparenquimatosa' : 'Coleção hemática hiperdensa intraparenquimatosa')
+          if (hipHemLocal && localMap[hipHemLocal]) s += ` ${localMap[hipHemLocal]}`
+          if (hipHemLado) s += ` à ${hipHemLado}`
+          if (hipHemDim) s += `, apresentando dimensões de aproximadamente ${hipHemDim}`
+          if (hipHemEdema) s += ', com edema perilesional'
+          if (hipHemEfeitoMassa) s += ' e efeito de massa sobre as estruturas adjacentes'
+          parts.push(s + '.')
+          if (hipHemInundacao) parts.push('Nota-se inundação hemorrágica ventricular.')
+          if (hipHemNivel) parts.push('Nível hematócrito nos ventrículos laterais.')
+        }
+
+        if (hsa) {
+          const locais: string[] = []
+          if (hsaSulcos) locais.push('nos sulcos das convexidades')
+          if (hsaCisternas) locais.push('nas cisternas da base')
+          if (hsaSylviana) locais.push('nas fissuras sylvianas')
+          let s = isRM ? 'Sinais de hemorragia subaracnóidea' : 'Hiperdensidade no espaço subaracnóideo'
+          if (locais.length > 0) s += `, ${locais.join(', ')}`
+          s += ', compatível com hemorragia subaracnóidea'
+          if (hsaFisher) s += ` (Fisher ${hsaFisher})`
+          parts.push(s + '.')
+        }
+
+        if (subdural) {
+          const faseMap: Record<string, string> = { agudo: isRM ? 'com sinal compatível com fase aguda' : 'hiperdensa (aguda)', subagudo: isRM ? 'com sinal compatível com fase subaguda' : 'iso a discretamente hiperdensa (subaguda)', cronico: isRM ? 'com sinal compatível com fase crônica' : 'hipodensa (crônica)' }
+          let s = `Coleção subdural ${faseMap[subduralFase] || ''}`
+          if (subduralLado === 'bilateral') s += ' bilateral'
+          else if (subduralLado) s += ` à ${subduralLado}`
+          if (subduralEsp) s += `, com espessura máxima de aproximadamente ${subduralEsp} mm`
+          if (subduralMembrana) s += ', com formação de membranas internas sugerindo cronicidade'
+          parts.push(s + '.')
+        }
+
+        if (epidural) {
+          const localMap: Record<string, string> = { frontal: 'na região frontal', temporal: 'na região temporal', parietal: 'na região parietal', occipital: 'na região occipital', fossa_post: 'na fossa posterior' }
+          let s = 'Coleção epidural biconvexa'
+          if (epiduralLocal && localMap[epiduralLocal]) s += ` ${localMap[epiduralLocal]}`
+          if (epiduralLado) s += ` à ${epiduralLado}`
+          if (epiduralEsp) s += `, com espessura máxima de ${epiduralEsp} mm`
+          parts.push(s + '.')
+        }
+
+        if (hiv) parts.push('Hemorragia intraventricular.')
+        if (hemComentario.trim()) parts.push(hemComentario.trim())
+
+        // ── AVC ISQUÊMICO ──
+        if (avcAgudo) {
+          const terrMap: Record<string, string> = {
+            acm: 'no território da artéria cerebral média', aca: 'no território da artéria cerebral anterior',
+            acp: 'no território da artéria cerebral posterior', vb: 'no território vertebrobasilar',
+            lacunar: 'na região dos núcleos da base, compatível com infarto lacunar',
+          }
+          let s = isRM ? 'Área de alteração de sinal' : 'Área de hipodensidade com perda da diferenciação substância branca/cinzenta'
+          if (avcTerritorio && terrMap[avcTerritorio]) s += ` ${terrMap[avcTerritorio]}`
+          if (avcLado) s += ` à ${avcLado}`
+          if (avcRestricao) s += isRM ? ', com restrição à difusão, compatível com isquemia aguda' : ''
+          parts.push(s + '.')
+          if (avcTransfHem) parts.push('Nota-se transformação hemorrágica associada.')
+          if (avcComentario.trim()) parts.push(avcComentario.trim())
+        }
+
+        if (sequelaIsq) {
+          const seqLocalMap: Record<string, string> = {
+            frontal: 'no lobo frontal', parietal: 'no lobo parietal', temporal: 'no lobo temporal', occipital: 'no lobo occipital',
+            nucleocapsular: 'na região nucleocapsular', talamica: 'na região talâmica',
+            cerebelar: 'no hemisfério cerebelar', ponte: 'na ponte',
+            acm: 'no território da artéria cerebral média', aca: 'no território da artéria cerebral anterior', acp: 'no território da artéria cerebral posterior',
+          }
+          let s = isRM ? 'Área de encefalomalácia/gliose' : 'Área de encefalomalácia'
+          if (sequelaLocal && seqLocalMap[sequelaLocal]) s += ` ${seqLocalMap[sequelaLocal]}`
+          if (sequelaLado === 'bilateral') s += ' bilateral'
+          else if (sequelaLado) s += ` à ${sequelaLado}`
+          s += ', compatível com sequela isquêmica'
+          parts.push(s + '.')
+        }
+
+        // ── LESÃO EXPANSIVA ──
+        if (lesaoExp) {
+          const tipoMap: Record<string, string> = { intra: 'intra-axial', extra: 'extra-axial' }
+          const localMap: Record<string, string> = {
+            frontal: 'no lobo frontal', parietal: 'no lobo parietal', temporal: 'no lobo temporal', occipital: 'no lobo occipital',
+            fossa_post: 'na fossa posterior', selar: 'na região selar/parasselar',
+            apc: 'no ângulo pontocerebelar', pineal: 'na região pineal',
+            ventricular: 'intraventricular', meninges: 'nas meninges',
+          }
+          const realceMap: Record<string, string> = { homogeneo: 'com realce homogêneo pelo meio de contraste', heterogeneo: 'com realce heterogêneo pelo meio de contraste', anelar: 'com realce anelar/periférico pelo meio de contraste', ausente: 'sem realce significativo pelo meio de contraste' }
+          let s = `Formação expansiva ${tipoMap[lesaoExpTipo] || ''}`
+          if (lesaoExpLocal && localMap[lesaoExpLocal]) s += ` ${localMap[lesaoExpLocal]}`
+          if (lesaoExpLado === 'mediana') s += ' de localização mediana'
+          else if (lesaoExpLado) s += ` à ${lesaoExpLado}`
+          if (lesaoExpDim) s += `, apresentando dimensões de aproximadamente ${lesaoExpDim}`
+          if (lesaoExpRealce && realceMap[lesaoExpRealce]) s += `, ${realceMap[lesaoExpRealce]}`
+          if (lesaoExpRestricao && isRM) s += ', com restrição à difusão'
+          if (lesaoExpEdema) s += ', com edema perilesional'
+          if (lesaoExpEfeitoMassa) s += ' e efeito de massa sobre as estruturas adjacentes'
+          parts.push(s + '.')
+          if (lesaoExpComentario.trim()) parts.push(lesaoExpComentario.trim())
+        }
+
+        // ── LINHA MÉDIA / EFEITO DE MASSA ──
+        if (desvioLM) {
+          let s = `Desvio das estruturas da linha média para a ${desvioLM}`
+          if (desvioLMmm) s += `, em aproximadamente ${desvioLMmm} mm`
+          parts.push(s + '.')
+        }
+        if (hernSubfalc) parts.push('Herniação subfalcina.')
+        if (hernTranstent === 'desc') parts.push('Sinais de herniação transtentorial descendente.')
+        else if (hernTranstent === 'asc') parts.push('Sinais de herniação transtentorial ascendente.')
+        if (hernTonsilar) parts.push('Herniação tonsilar.')
+        if (apagCisternas) parts.push('Apagamento das cisternas da base.')
 
         // Espaços liquóricos
         const liqParts: string[] = []
@@ -573,6 +780,11 @@ export default function NeuroReport() {
         // Comentário 3
         if (comentario3.trim()) parts.push(comentario3.trim())
 
+        // Realce pós-contraste
+        if (realceMeningeo === 'paquimeningeo') parts.push('Realce paquimeníngeo (dural) difuso após a injeção do meio de contraste.')
+        else if (realceMeningeo === 'leptomeningeo') parts.push('Realce leptomeníngeo após a injeção do meio de contraste.')
+        if (realceComentario.trim()) parts.push(realceComentario.trim())
+
         // Calcificações
         if (calcPalidais) parts.push('Calcificações palidais, achado habitual nesta faixa etária.')
         if (sbstParamag && isRM) parts.push('Hipossinal nos núcleos lentiformes em SWI, compatível com depósito de minerais, achado habitual nesta faixa etária.')
@@ -630,7 +842,7 @@ export default function NeuroReport() {
 
     return parts.join('\n\n')
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [exame, temCranio, hasCranioSelections, artMovimento, artSuscep, comentario1, sulcos, ventriculos, fossaPost, atrofia, hpn, assimVL, coaptDir, coaptEsq, cavoPelucido, cavoVerga, cavoVeu, demaisSulcosNorm, restanteSVNorm, cistoAracnoide, sbMode, sbPronto, sbIntensidade, sbConfluentes, sbDifusas, sbCornAnt, sbAtrios, sbCentrosSO, sbEsparsas, sbCorRad, sbSubcort, sbMaisRaras, sbRegFP, sbSubins, comentario2, epvaQtd, epvaCentrosSO, epvaNLent, epvaCauD, epvaCauE, epvaCapIntD, epvaCapIntE, epvaTalD, epvaTalE, epvaInfPut, epvaSubins, epvaMesenc, epvaPont, lacunas, cerebelo, hipocampos, comentario3, calcPalidais, sbstParamag, hipFrontal, hipParietal, selaVazia, selaPacIdoso, nervosOpt, seiosVenAfilados, cavosMeckel, iiiVentrFenda, hicBenigna, lesaoOssea, spn, spnNormal, mastoidesNormal, mastHipopneuBilat, mastHipopneuDir, mastHipopneuEsq, mastEburneo, mastApiceDir, mastApiceEsq, mastOblit, mastDelineamento, mastDelineDir, mastDelineEsq, mastNivelLiq, facectomia, temAngioArterial, angioGeral, vasos, vertDom, circFetal, a1Hipoplasia, fenestBasilar, artTrigeminal, azigus, angioVen, venNormal, venAssimTransvDir, venAssimTransvEsq, venTrombose, venTromboseLocal, venComentario])
+  }, [exame, temCranio, hasCranioSelections, artMovimento, artSuscep, comentario1, hipHem, hipHemFase, hipHemLocal, hipHemLado, hipHemDim, hipHemEdema, hipHemEfeitoMassa, hipHemInundacao, hipHemNivel, hsa, hsaFisher, hsaSulcos, hsaCisternas, hsaSylviana, subdural, subduralFase, subduralLado, subduralEsp, subduralMembrana, epidural, epiduralLado, epiduralLocal, epiduralEsp, hiv, hemComentario, avcAgudo, avcTerritorio, avcLado, avcRestricao, avcTransfHem, avcComentario, sequelaIsq, sequelaLocal, sequelaLado, lesaoExp, lesaoExpTipo, lesaoExpLocal, lesaoExpLado, lesaoExpDim, lesaoExpRealce, lesaoExpEdema, lesaoExpEfeitoMassa, lesaoExpRestricao, lesaoExpComentario, desvioLM, desvioLMmm, hernSubfalc, hernTranstent, hernTonsilar, apagCisternas, realceMeningeo, realceComentario, sulcos, ventriculos, fossaPost, atrofia, hpn, assimVL, coaptDir, coaptEsq, cavoPelucido, cavoVerga, cavoVeu, demaisSulcosNorm, restanteSVNorm, cistoAracnoide, sbMode, sbPronto, sbIntensidade, sbConfluentes, sbDifusas, sbCornAnt, sbAtrios, sbCentrosSO, sbEsparsas, sbCorRad, sbSubcort, sbMaisRaras, sbRegFP, sbSubins, comentario2, epvaQtd, epvaCentrosSO, epvaNLent, epvaCauD, epvaCauE, epvaCapIntD, epvaCapIntE, epvaTalD, epvaTalE, epvaInfPut, epvaSubins, epvaMesenc, epvaPont, lacunas, cerebelo, hipocampos, comentario3, calcPalidais, sbstParamag, hipFrontal, hipParietal, selaVazia, selaPacIdoso, nervosOpt, seiosVenAfilados, cavosMeckel, iiiVentrFenda, hicBenigna, lesaoOssea, spn, spnNormal, mastoidesNormal, mastHipopneuBilat, mastHipopneuDir, mastHipopneuEsq, mastEburneo, mastApiceDir, mastApiceEsq, mastOblit, mastDelineamento, mastDelineDir, mastDelineEsq, mastNivelLiq, facectomia, temAngioArterial, angioGeral, vasos, vertDom, circFetal, a1Hipoplasia, fenestBasilar, artTrigeminal, azigus, angioVen, venNormal, venAssimTransvDir, venAssimTransvEsq, venTrombose, venTromboseLocal, venComentario])
 
   // ── SPN text generation ──
   function gerarTextoSPN(spnData: Record<string, SPNSeio>, normal: boolean, _exame: Exame): string {
@@ -894,6 +1106,56 @@ export default function NeuroReport() {
     if (temCranio && !hasCranioSelections) {
       conc.push(isRM ? 'Exame do encéfalo dentro dos limites da normalidade.' : 'Exame do encéfalo dentro dos limites da normalidade.')
     } else if (temCranio) {
+      // Hemorragia
+      if (hipHem) {
+        const localMap: Record<string, string> = {
+          lobar_frontal: 'frontal', lobar_parietal: 'parietal', lobar_temporal: 'temporal', lobar_occipital: 'occipital',
+          nucleocapsular: 'nucleocapsular', talamica: 'talâmica', cerebelar: 'cerebelar', pontina: 'pontina', mesencefalica: 'mesencefálica',
+        }
+        let s = 'Hemorragia intraparenquimatosa'
+        if (hipHemLocal && localMap[hipHemLocal]) s += ` ${localMap[hipHemLocal]}`
+        if (hipHemLado) s += ` à ${hipHemLado}`
+        conc.push(s + '.')
+      }
+      if (hsa) conc.push('Hemorragia subaracnóidea.')
+      if (subdural) {
+        const faseStr = subduralFase === 'agudo' ? 'agudo' : subduralFase === 'subagudo' ? 'subagudo' : subduralFase === 'cronico' ? 'crônico' : ''
+        conc.push(`Hematoma subdural ${faseStr}${subduralLado === 'bilateral' ? ' bilateral' : subduralLado ? ` à ${subduralLado}` : ''}.`)
+      }
+      if (epidural) conc.push(`Hematoma epidural${epiduralLado ? ` à ${epiduralLado}` : ''}.`)
+      if (hiv) conc.push('Hemorragia intraventricular.')
+
+      // AVC
+      if (avcAgudo) {
+        const terrMap: Record<string, string> = { acm: 'no território da ACM', aca: 'no território da ACA', acp: 'no território da ACP', vb: 'vertebrobasilar', lacunar: 'lacunar' }
+        conc.push(`Isquemia aguda ${terrMap[avcTerritorio] || ''}${avcLado ? ` à ${avcLado}` : ''}.`)
+      }
+      if (sequelaIsq) conc.push(`Sequela isquêmica${sequelaLado === 'bilateral' ? ' bilateral' : sequelaLado ? ` à ${sequelaLado}` : ''}.`)
+      if (avcTransfHem) conc.push('Transformação hemorrágica.')
+
+      // Lesão expansiva
+      if (lesaoExp) {
+        let s = `Lesão expansiva ${lesaoExpTipo === 'intra' ? 'intra-axial' : lesaoExpTipo === 'extra' ? 'extra-axial' : ''}`
+        if (lesaoExpLado === 'mediana') s += ' mediana'
+        else if (lesaoExpLado) s += ` à ${lesaoExpLado}`
+        if (lesaoExpDim) s += ` (${lesaoExpDim})`
+        conc.push(s + ' (a investigar / correlacionar com dados clínicos).')
+      }
+
+      // Linha média
+      if (desvioLM) conc.push(`Desvio da linha média para a ${desvioLM}${desvioLMmm ? ` (${desvioLMmm} mm)` : ''}.`)
+      if (hernSubfalc || hernTranstent || hernTonsilar) {
+        const h: string[] = []
+        if (hernSubfalc) h.push('subfalcina')
+        if (hernTranstent) h.push(`transtentorial ${hernTranstent === 'desc' ? 'descendente' : 'ascendente'}`)
+        if (hernTonsilar) h.push('tonsilar')
+        conc.push(`Herniação ${h.join(', ')}.`)
+      }
+
+      // Realce
+      if (realceMeningeo === 'paquimeningeo') conc.push('Realce paquimeníngeo.')
+      else if (realceMeningeo === 'leptomeningeo') conc.push('Realce leptomeníngeo.')
+
       // Atrofia / HPN
       if (atrofia) conc.push('Sinais de redução volumétrica encefálica.')
       if (hpn) conc.push('Achados que podem ser observados nos distúrbios da dinâmica do fluxo liquórico (hidrocefalia de pressão normal), em contexto clínico compatível.')
@@ -996,7 +1258,7 @@ export default function NeuroReport() {
     }
 
     return conc.join('\n')
-  }, [exame, temCranio, hasCranioSelections, atrofia, hpn, sbMode, sbPronto, sbConfluentes, sbDifusas, sbCornAnt, sbAtrios, sbCentrosSO, sbEsparsas, sbCorRad, sbSubcort, sbMaisRaras, sbRegFP, sbSubins, epvaQtd, lacunas, hipocampos, calcPalidais, hipFrontal, hipParietal, selaVazia, hicBenigna, spnNormal, spn, cerebelo, temAngioArterial, angioGeral, vasos, angioCervical, angioIntra, vertDom, circFetal, a1Hipoplasia, fenestBasilar, artTrigeminal, azigus, angioVen, venNormal, venTrombose, venAssimTransvDir, venAssimTransvEsq])
+  }, [exame, temCranio, hasCranioSelections, hipHem, hipHemLocal, hipHemLado, hipHemFase, hipHemDim, hsa, subdural, subduralFase, subduralLado, subduralEsp, epidural, epiduralLado, hiv, avcAgudo, avcTerritorio, avcLado, avcTransfHem, sequelaIsq, sequelaLado, lesaoExp, lesaoExpTipo, lesaoExpLado, lesaoExpDim, desvioLM, desvioLMmm, hernSubfalc, hernTranstent, hernTonsilar, realceMeningeo, atrofia, hpn, sbMode, sbPronto, sbConfluentes, sbDifusas, sbCornAnt, sbAtrios, sbCentrosSO, sbEsparsas, sbCorRad, sbSubcort, sbMaisRaras, sbRegFP, sbSubins, epvaQtd, lacunas, hipocampos, calcPalidais, hipFrontal, hipParietal, selaVazia, hicBenigna, spnNormal, spn, cerebelo, temAngioArterial, angioGeral, vasos, angioCervical, angioIntra, vertDom, circFetal, a1Hipoplasia, fenestBasilar, artTrigeminal, azigus, angioVen, venNormal, venTrombose, venAssimTransvDir, venAssimTransvEsq])
 
   // Copy functions — rich HTML for Word/Docs compatibility
   // ══════════════════════════════════════════════════════════
@@ -1101,6 +1363,169 @@ export default function NeuroReport() {
                 <Txt value={comentario1} onChange={setComentario1} placeholder="Texto livre..." />
               </div>
             </Card>
+
+            <GroupHeader label="Achados Agudos / Lesões" color="var(--red)" />
+
+            {/* Hemorragia */}
+            <Card id="hemorragia" activeCard={activeCard} setActiveCard={setActiveCard} title="Hemorragia"
+              badge={hipHem || hsa || subdural || epidural || hiv ? 'ATIVO' : undefined}>
+              <div className="space-y-3">
+                {/* HIP */}
+                <div className="space-y-1">
+                  <Chk checked={hipHem} onChange={setHipHem} label="Hemorragia intraparenquimatosa (HIP)" />
+                  {hipHem && <div className="pl-4 space-y-1">
+                    <Radio value={hipHemFase} onChange={setHipHemFase} label="Fase"
+                      options={[{ v: '' as any, l: '—' }, { v: 'aguda', l: 'Aguda' }, { v: 'subaguda', l: 'Subaguda' }]} />
+                    <Radio value={hipHemLocal} onChange={setHipHemLocal} label="Localização"
+                      options={[{ v: '' as any, l: '—' }, { v: 'lobar_frontal', l: 'Frontal' }, { v: 'lobar_parietal', l: 'Parietal' }, { v: 'lobar_temporal', l: 'Temporal' }]} />
+                    <Radio value={hipHemLocal} onChange={setHipHemLocal}
+                      options={[{ v: 'lobar_occipital', l: 'Occipital' }, { v: 'nucleocapsular', l: 'Nucleocaps.' }, { v: 'talamica', l: 'Talâmica' }, { v: 'cerebelar', l: 'Cerebelar' }]} />
+                    <Radio value={hipHemLocal} onChange={setHipHemLocal}
+                      options={[{ v: 'pontina', l: 'Pontina' }, { v: 'mesencefalica', l: 'Mesencefálica' }]} />
+                    <Radio value={hipHemLado} onChange={setHipHemLado} label="Lado"
+                      options={[{ v: '' as any, l: '—' }, { v: 'direita', l: 'D' }, { v: 'esquerda', l: 'E' }]} />
+                    <Txt value={hipHemDim} onChange={setHipHemDim} placeholder="Dimensões (ex: 3,0 x 2,5 x 2,0 cm)" />
+                    <Chk checked={hipHemEdema} onChange={setHipHemEdema} label="Edema perilesional" />
+                    <Chk checked={hipHemEfeitoMassa} onChange={setHipHemEfeitoMassa} label="Efeito de massa" />
+                    <Chk checked={hipHemInundacao} onChange={setHipHemInundacao} label="Inundação ventricular" />
+                    <Chk checked={hipHemNivel} onChange={setHipHemNivel} label="Nível hematócrito ventricular" />
+                  </div>}
+                </div>
+
+                {/* HSA */}
+                <div className="space-y-1">
+                  <Chk checked={hsa} onChange={setHsa} label="Hemorragia subaracnóidea (HSA)" />
+                  {hsa && <div className="pl-4 space-y-1">
+                    <div className="flex flex-wrap gap-3">
+                      <Chk checked={hsaSulcos} onChange={setHsaSulcos} label="Sulcos convexidades" />
+                      <Chk checked={hsaCisternas} onChange={setHsaCisternas} label="Cisternas da base" />
+                      <Chk checked={hsaSylviana} onChange={setHsaSylviana} label="Fissuras sylvianas" />
+                    </div>
+                    <Radio value={hsaFisher} onChange={setHsaFisher} label="Fisher"
+                      options={[{ v: '' as any, l: '—' }, { v: 'I', l: 'I' }, { v: 'II', l: 'II' }, { v: 'III', l: 'III' }]} />
+                  </div>}
+                </div>
+
+                {/* Subdural */}
+                <div className="space-y-1">
+                  <Chk checked={subdural} onChange={setSubdural} label="Hematoma subdural" />
+                  {subdural && <div className="pl-4 space-y-1">
+                    <Radio value={subduralFase} onChange={setSubduralFase} label="Fase"
+                      options={[{ v: '' as any, l: '—' }, { v: 'agudo', l: 'Agudo' }, { v: 'subagudo', l: 'Subagudo' }, { v: 'cronico', l: 'Crônico' }]} />
+                    <Radio value={subduralLado} onChange={setSubduralLado} label="Lado"
+                      options={[{ v: '' as any, l: '—' }, { v: 'direita', l: 'D' }, { v: 'esquerda', l: 'E' }, { v: 'bilateral', l: 'Bilateral' }]} />
+                    <Txt value={subduralEsp} onChange={setSubduralEsp} placeholder="Espessura máxima (mm)" />
+                    <Chk checked={subduralMembrana} onChange={setSubduralMembrana} label="Membranas internas (cronicidade)" />
+                  </div>}
+                </div>
+
+                {/* Epidural */}
+                <div className="space-y-1">
+                  <Chk checked={epidural} onChange={setEpidural} label="Hematoma epidural" />
+                  {epidural && <div className="pl-4 space-y-1">
+                    <Radio value={epiduralLocal} onChange={setEpiduralLocal} label="Localização"
+                      options={[{ v: '' as any, l: '—' }, { v: 'frontal', l: 'Frontal' }, { v: 'temporal', l: 'Temporal' }, { v: 'parietal', l: 'Parietal' }]} />
+                    <Radio value={epiduralLocal} onChange={setEpiduralLocal}
+                      options={[{ v: 'occipital', l: 'Occipital' }, { v: 'fossa_post', l: 'Fossa posterior' }]} />
+                    <Radio value={epiduralLado} onChange={setEpiduralLado} label="Lado"
+                      options={[{ v: '' as any, l: '—' }, { v: 'direita', l: 'D' }, { v: 'esquerda', l: 'E' }]} />
+                    <Txt value={epiduralEsp} onChange={setEpiduralEsp} placeholder="Espessura máxima (mm)" />
+                  </div>}
+                </div>
+
+                <Chk checked={hiv} onChange={setHiv} label="Hemorragia intraventricular" />
+                <Txt value={hemComentario} onChange={setHemComentario} placeholder="Comentário hemorragia..." />
+              </div>
+            </Card>
+
+            {/* AVC Isquêmico */}
+            <Card id="avc" activeCard={activeCard} setActiveCard={setActiveCard} title="AVC Isquêmico"
+              badge={avcAgudo || sequelaIsq ? 'ATIVO' : undefined}>
+              <div className="space-y-3">
+                <div className="space-y-1">
+                  <Chk checked={avcAgudo} onChange={setAvcAgudo} label="Isquemia aguda" />
+                  {avcAgudo && <div className="pl-4 space-y-1">
+                    <Radio value={avcTerritorio} onChange={setAvcTerritorio} label="Território"
+                      options={[{ v: '' as any, l: '—' }, { v: 'acm', l: 'ACM' }, { v: 'aca', l: 'ACA' }, { v: 'acp', l: 'ACP' }]} />
+                    <Radio value={avcTerritorio} onChange={setAvcTerritorio}
+                      options={[{ v: 'vb', l: 'Vertebrobasilar' }, { v: 'lacunar', l: 'Lacunar' }]} />
+                    <Radio value={avcLado} onChange={setAvcLado} label="Lado"
+                      options={[{ v: '' as any, l: '—' }, { v: 'direita', l: 'D' }, { v: 'esquerda', l: 'E' }]} />
+                    {exame === 'rm' && <Chk checked={avcRestricao} onChange={setAvcRestricao} label="Restrição à difusão" />}
+                    <Chk checked={avcTransfHem} onChange={setAvcTransfHem} label="Transformação hemorrágica" />
+                    <Txt value={avcComentario} onChange={setAvcComentario} placeholder="Comentário AVC agudo..." />
+                  </div>}
+                </div>
+                <div className="space-y-1">
+                  <Chk checked={sequelaIsq} onChange={setSequelaIsq} label="Sequela isquêmica" />
+                  {sequelaIsq && <div className="pl-4 space-y-1">
+                    <Radio value={sequelaLocal} onChange={setSequelaLocal} label="Localização"
+                      options={[{ v: '' as any, l: '—' }, { v: 'frontal', l: 'Frontal' }, { v: 'parietal', l: 'Parietal' }, { v: 'temporal', l: 'Temporal' }]} />
+                    <Radio value={sequelaLocal} onChange={setSequelaLocal}
+                      options={[{ v: 'occipital', l: 'Occipital' }, { v: 'nucleocapsular', l: 'Nucleocaps.' }, { v: 'talamica', l: 'Talâmica' }, { v: 'cerebelar', l: 'Cerebelar' }]} />
+                    <Radio value={sequelaLocal} onChange={setSequelaLocal}
+                      options={[{ v: 'ponte', l: 'Ponte' }, { v: 'acm', l: 'Territ. ACM' }, { v: 'aca', l: 'Territ. ACA' }, { v: 'acp', l: 'Territ. ACP' }]} />
+                    <Radio value={sequelaLado} onChange={setSequelaLado} label="Lado"
+                      options={[{ v: '' as any, l: '—' }, { v: 'direita', l: 'D' }, { v: 'esquerda', l: 'E' }, { v: 'bilateral', l: 'Bilateral' }]} />
+                  </div>}
+                </div>
+              </div>
+            </Card>
+
+            {/* Lesão Expansiva */}
+            <Card id="lesaoexp" activeCard={activeCard} setActiveCard={setActiveCard} title="Lesão Expansiva"
+              badge={lesaoExp ? 'ATIVO' : undefined}>
+              <div className="space-y-2">
+                <Chk checked={lesaoExp} onChange={setLesaoExp} label="Formação expansiva" />
+                {lesaoExp && <>
+                  <Radio value={lesaoExpTipo} onChange={setLesaoExpTipo} label="Tipo"
+                    options={[{ v: '' as any, l: '—' }, { v: 'intra', l: 'Intra-axial' }, { v: 'extra', l: 'Extra-axial' }]} />
+                  <Radio value={lesaoExpLocal} onChange={setLesaoExpLocal} label="Localização"
+                    options={[{ v: '' as any, l: '—' }, { v: 'frontal', l: 'Frontal' }, { v: 'parietal', l: 'Parietal' }, { v: 'temporal', l: 'Temporal' }]} />
+                  <Radio value={lesaoExpLocal} onChange={setLesaoExpLocal}
+                    options={[{ v: 'occipital', l: 'Occipital' }, { v: 'fossa_post', l: 'Fossa post.' }, { v: 'selar', l: 'Selar' }, { v: 'apc', l: 'APC' }]} />
+                  <Radio value={lesaoExpLocal} onChange={setLesaoExpLocal}
+                    options={[{ v: 'pineal', l: 'Pineal' }, { v: 'ventricular', l: 'Ventricular' }, { v: 'meninges', l: 'Meninges' }]} />
+                  <Radio value={lesaoExpLado} onChange={setLesaoExpLado} label="Lado"
+                    options={[{ v: '' as any, l: '—' }, { v: 'direita', l: 'D' }, { v: 'esquerda', l: 'E' }, { v: 'mediana', l: 'Mediana' }]} />
+                  <Txt value={lesaoExpDim} onChange={setLesaoExpDim} placeholder="Dimensões (ex: 3,0 x 2,5 x 2,0 cm)" />
+                  {contraste !== 'sem' && <Radio value={lesaoExpRealce} onChange={setLesaoExpRealce} label="Realce"
+                    options={[{ v: '' as any, l: '—' }, { v: 'homogeneo', l: 'Homogêneo' }, { v: 'heterogeneo', l: 'Heterogêneo' }, { v: 'anelar', l: 'Anelar' }]} />}
+                  {exame === 'rm' && <Chk checked={lesaoExpRestricao} onChange={setLesaoExpRestricao} label="Restrição à difusão" />}
+                  <Chk checked={lesaoExpEdema} onChange={setLesaoExpEdema} label="Edema perilesional" />
+                  <Chk checked={lesaoExpEfeitoMassa} onChange={setLesaoExpEfeitoMassa} label="Efeito de massa" />
+                  <Txt value={lesaoExpComentario} onChange={setLesaoExpComentario} placeholder="Comentário lesão..." rows={2} />
+                </>}
+              </div>
+            </Card>
+
+            {/* Linha Média / Efeito de Massa */}
+            <Card id="linhamedia" activeCard={activeCard} setActiveCard={setActiveCard} title="Linha Média / Efeito de Massa"
+              badge={desvioLM || hernSubfalc || hernTranstent || hernTonsilar ? 'ATIVO' : undefined}>
+              <div className="space-y-2">
+                <Radio value={desvioLM} onChange={setDesvioLM} label="Desvio da linha média"
+                  options={[{ v: '' as any, l: 'Sem' }, { v: 'direita', l: 'Para D' }, { v: 'esquerda', l: 'Para E' }]} />
+                {desvioLM && <Txt value={desvioLMmm} onChange={setDesvioLMmm} placeholder="Medida (mm)" />}
+                <Chk checked={hernSubfalc} onChange={setHernSubfalc} label="Herniação subfalcina" />
+                <Radio value={hernTranstent} onChange={v => setHernTranstent(v)} label="Herniação transtentorial"
+                  options={[{ v: '' as any, l: 'Sem' }, { v: 'desc', l: 'Descendente' }, { v: 'asc', l: 'Ascendente' }]} />
+                <Chk checked={hernTonsilar} onChange={setHernTonsilar} label="Herniação tonsilar" />
+                <Chk checked={apagCisternas} onChange={setApagCisternas} label="Apagamento cisternas da base" />
+              </div>
+            </Card>
+
+            {/* Realce pós-contraste */}
+            {contraste !== 'sem' && (
+              <Card id="realce" activeCard={activeCard} setActiveCard={setActiveCard} title="Realce Pós-Contraste">
+                <div className="space-y-2">
+                  <Radio value={realceMeningeo} onChange={setRealceMeningeo} label="Realce meníngeo"
+                    options={[{ v: '' as any, l: 'Sem' }, { v: 'paquimeningeo', l: 'Paquimeníngeo' }, { v: 'leptomeningeo', l: 'Leptomeníngeo' }]} />
+                  <Txt value={realceComentario} onChange={setRealceComentario} placeholder="Outros achados de realce (texto livre)..." rows={2} />
+                </div>
+              </Card>
+            )}
+
+            <GroupHeader label="Parênquima" />
 
             {/* Espaços liquóricos */}
             <Card id="liquoricos" activeCard={activeCard} setActiveCard={setActiveCard} title="Espaços Liquóricos">
@@ -1245,6 +1670,8 @@ export default function NeuroReport() {
               {exame === 'rm' && <Chk checked={sbstParamag} onChange={setSbstParamag} label="Hipossinal SWI nos lentiformes (depósito minerais)" />}
             </Card>
 
+            <GroupHeader label="Estruturas" />
+
             {/* Hiperostose */}
             <Card id="hiperostose" activeCard={activeCard} setActiveCard={setActiveCard} title="Hiperostose">
               <Chk checked={hipFrontal} onChange={setHipFrontal} label="Frontal" />
@@ -1330,7 +1757,9 @@ export default function NeuroReport() {
             </Card>
           </>}
 
-          {/* ── ANGIO ARTERIAL ── */}
+          {/* ── ANGIO ── */}
+          {(temAngioArterial || angioVen) && <GroupHeader label="Angiografia" color="var(--accent)" />}
+
           {temAngioArterial && (
             <Card id="angio" activeCard={activeCard} setActiveCard={setActiveCard} title={`Angio Arterial${angioCervical && angioIntra ? ' (Cervical + Intracraniana)' : angioCervical ? ' (Cervical)' : ' (Intracraniana)'}`}>
               <div className="space-y-3">
