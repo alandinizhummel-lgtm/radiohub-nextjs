@@ -80,7 +80,8 @@ const DISEASE_CONFIGS: DiseaseConfig[] = [
     ],
     usaBullseye: true,
     temContratilidade: true,
-    temEdema: true,
+    temMarkers: true,
+    temEdema: false,
     temMassa: true,
     temTerritorio: false,
     isquemico: false,
@@ -448,19 +449,46 @@ function gerarTextoInstancia(inst: DiseaseInstance): string {
       texto += `. Área de no-reflow (obstrução microvascular) nos ${listarSegmentos(nrSet)}`
     }
   } else if (cfg.id === 'miocardite') {
-    // Miocardite: include intensidade and per-segment contratilidade
+    // Miocardite: include intensidade, per-segment contratilidade, and per-segment edema
     const intensidadeMap: Record<string, string> = { tenues: 'Tênues', discretos: 'Discretos', extensos: 'Extensos' }
     const intLabel = intensidadeMap[String(ex.intensidade)] || 'Discretos'
     const contratTexto = gerarContratTexto(inst.contratilidade)
     const contratSuffix = contratTexto ? `. ${contratTexto}` : ''
+
+    // Collect all selected segments and split by edema presence
+    const allSegsForMio = new Set<number>()
+    for (const p of padroesAtivos) for (const s of p.segs) allSegsForMio.add(s)
+    const segsComEdema = new Set<number>()
+    const segsSemEdema = new Set<number>()
+    for (const s of allSegsForMio) {
+      if (inst.edemaSegs[s]) segsComEdema.add(s)
+      else segsSemEdema.add(s)
+    }
+
+    // Base text with pattern description
     if (padroesAtivos.length === 1) {
       const p = padroesAtivos[0]
-      texto = `${intLabel} focos de realce tardio ${p.label} (${tipoStr}) nos ${listarSegmentos(p.segs)}${contratSuffix}`
+      texto = `${intLabel} focos de realce tardio ${p.label} (${tipoStr}) nos ${listarSegmentos(p.segs)}`
     } else {
       const partes = padroesAtivos.map(p => `${p.label} nos ${listarSegmentos(p.segs)}`)
       const last = partes.pop()!
-      texto = `${intLabel} focos de realce tardio (${tipoStr}): ${partes.join(', ')}, e ${last}${contratSuffix}`
+      texto = `${intLabel} focos de realce tardio (${tipoStr}): ${partes.join(', ')}, e ${last}`
     }
+
+    // Edema per-segment differentiation
+    if (segsComEdema.size > 0 && segsSemEdema.size > 0) {
+      // Mixed: some with edema (acute), some without (cicatricial)
+      texto += `, com edema miocárdico associado nos ${listarSegmentos(segsComEdema)}, sugestivo de atividade inflamatória aguda`
+      texto += `. Focos nos ${listarSegmentos(segsSemEdema)} sem edema associado, sugestivos de acometimento cicatricial`
+    } else if (segsComEdema.size > 0) {
+      // All with edema
+      texto += ', com edema miocárdico associado, sugestivo de atividade inflamatória aguda'
+    } else if (segsSemEdema.size > 0 && allSegsForMio.size > 0) {
+      // All without edema — cicatricial
+      texto += ', sem edema associado, sugestivo de acometimento cicatricial'
+    }
+
+    texto += contratSuffix
   } else if (cfg.id === 'hcm') {
     // HCM: include tipo, espessura máxima, obstrução VSVE, SAM
     const tipoHcmMap: Record<string, string> = {
@@ -556,8 +584,21 @@ function gerarConclusaoInstancia(inst: DiseaseInstance): string {
     }
     case 'miocardite': {
       if (!cfg.usaBullseye || allSegs.size === 0) return ''
+      // Check if any segments have edema painted
+      const edemaKeys = Object.keys(inst.edemaSegs).filter(k => inst.edemaSegs[Number(k)] && allSegs.has(Number(k)))
+      const segsWithoutEdema = Array.from(allSegs).filter(s => !inst.edemaSegs[s])
+      const hasEdemaSegs = edemaKeys.length > 0
+      const hasCicatricialSegs = segsWithoutEdema.length > 0
+      if (hasEdemaSegs && hasCicatricialSegs) {
+        return 'Alterações compatíveis com miocardite com componentes de atividade inflamatória aguda e sequela cicatricial.'
+      }
+      if (hasEdemaSegs) {
+        return 'Alterações compatíveis com miocardite em atividade inflamatória aguda.'
+      }
+      // No edema painted at all — use phase info
       const fase = String(ex.fase || 'aguda')
       if (fase === 'aguda') return 'Alterações compatíveis com miocardite aguda.'
+      if (fase === 'cronica') return 'Alterações compatíveis com sequela de miocardite (padrão cicatricial).'
       return 'Alterações que comportam miocardite nos diferenciais.'
     }
     case 'amiloidose': {
@@ -1065,7 +1106,9 @@ function DiseaseCard({ config, instance, onUpdate, onRemove }: {
             <label className="block text-xs font-semibold mb-2" style={{ color: 'var(--text3)' }}>
               {activeTab === 'pattern' && `Segmentos (${totalSegs}/17) — clique para alternar padrão`}
               {activeTab === 'motion' && `Motilidade (${motionCount} segs) — selecione o tipo e arraste para pintar`}
-              {activeTab === 'markers' && `Marcadores — selecione edema ou no-reflow e arraste para pintar`}
+              {activeTab === 'markers' && (config.id === 'infarto'
+                ? `Marcadores — selecione edema ou no-reflow e arraste para pintar`
+                : `Edema (${edemaCount} segs) — pinte os segmentos com edema (atividade inflamatória aguda)`)}
             </label>
 
             <div className="flex gap-3 items-start">
@@ -1095,32 +1138,38 @@ function DiseaseCard({ config, instance, onUpdate, onRemove }: {
                   )}
                 </div>
               )}
-              {activeTab === 'markers' && config.temMarkers && (
-                <div className="flex flex-col gap-1.5 pt-1 shrink-0">
-                  {MARKER_BRUSHES.map(m => {
-                    const isActive = activeBrush === m.key
-                    const count = m.key === 'edema' ? edemaCount : noReflowCount
-                    const patternIcon = m.key === 'edema' ? '///' : '...'
-                    return (
-                      <button key={m.key} type="button" onClick={() => setActiveBrush(isActive ? null : m.key)}
-                        className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-[11px] font-semibold transition-all border text-left whitespace-nowrap"
-                        style={isActive
-                          ? { backgroundColor: m.cor + '22', borderColor: m.cor, color: m.cor, boxShadow: `0 0 8px ${m.cor}44` }
-                          : { backgroundColor: 'transparent', borderColor: 'var(--border)', color: 'var(--text3)' }
-                        }>
-                        <span className="w-5 h-3 rounded-sm shrink-0 text-[8px] font-mono flex items-center justify-center" style={{ backgroundColor: m.cor + '33', color: m.cor }}>{patternIcon}</span>
-                        {m.label}
-                        {count > 0 && <span className="ml-1 opacity-70">({count})</span>}
-                      </button>
-                    )
-                  })}
-                  {(edemaCount > 0 || noReflowCount > 0) && (
-                    <button type="button" onClick={() => { setActiveBrush(null); onUpdate({ edemaSegs: {}, noReflowSegs: {} }) }}
-                      className="text-[10px] px-2 py-1 rounded border mt-1"
-                      style={{ borderColor: 'var(--border)', color: 'var(--text3)' }}>Limpar marcadores</button>
-                  )}
-                </div>
-              )}
+              {activeTab === 'markers' && config.temMarkers && (() => {
+                // Filter brushes: miocardite only shows edema, infarto shows both
+                const availableBrushes = config.id === 'infarto'
+                  ? MARKER_BRUSHES
+                  : MARKER_BRUSHES.filter(m => m.key === 'edema')
+                return (
+                  <div className="flex flex-col gap-1.5 pt-1 shrink-0">
+                    {availableBrushes.map(m => {
+                      const isActive = activeBrush === m.key
+                      const count = m.key === 'edema' ? edemaCount : noReflowCount
+                      const patternIcon = m.key === 'edema' ? '///' : '...'
+                      return (
+                        <button key={m.key} type="button" onClick={() => setActiveBrush(isActive ? null : m.key)}
+                          className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-[11px] font-semibold transition-all border text-left whitespace-nowrap"
+                          style={isActive
+                            ? { backgroundColor: m.cor + '22', borderColor: m.cor, color: m.cor, boxShadow: `0 0 8px ${m.cor}44` }
+                            : { backgroundColor: 'transparent', borderColor: 'var(--border)', color: 'var(--text3)' }
+                          }>
+                          <span className="w-5 h-3 rounded-sm shrink-0 text-[8px] font-mono flex items-center justify-center" style={{ backgroundColor: m.cor + '33', color: m.cor }}>{patternIcon}</span>
+                          {m.label}
+                          {count > 0 && <span className="ml-1 opacity-70">({count})</span>}
+                        </button>
+                      )
+                    })}
+                    {(edemaCount > 0 || noReflowCount > 0) && (
+                      <button type="button" onClick={() => { setActiveBrush(null); onUpdate({ edemaSegs: {}, noReflowSegs: {} }) }}
+                        className="text-[10px] px-2 py-1 rounded border mt-1"
+                        style={{ borderColor: 'var(--border)', color: 'var(--text3)' }}>Limpar marcadores</button>
+                    )}
+                  </div>
+                )
+              })()}
 
               <div className="flex-1 min-w-0 relative">
                 <CycleBullseye
@@ -1174,12 +1223,14 @@ function DiseaseCard({ config, instance, onUpdate, onRemove }: {
                 }}>
                   <span className="font-mono text-[8px]">///</span> Edema ({edemaCount})
                 </span>
-                <span className="text-[10px] px-2 py-0.5 rounded border flex items-center gap-1" style={{
-                  borderColor: noReflowCount > 0 ? '#f97316' : 'var(--border)',
-                  color: noReflowCount > 0 ? '#f97316' : 'var(--text3)',
-                }}>
-                  <span className="font-mono text-[8px]">...</span> No-reflow ({noReflowCount})
-                </span>
+                {config.id === 'infarto' && (
+                  <span className="text-[10px] px-2 py-0.5 rounded border flex items-center gap-1" style={{
+                    borderColor: noReflowCount > 0 ? '#f97316' : 'var(--border)',
+                    color: noReflowCount > 0 ? '#f97316' : 'var(--text3)',
+                  }}>
+                    <span className="font-mono text-[8px]">...</span> No-reflow ({noReflowCount})
+                  </span>
+                )}
               </div>
             )}
             <div className="flex justify-center gap-2 mt-2">
