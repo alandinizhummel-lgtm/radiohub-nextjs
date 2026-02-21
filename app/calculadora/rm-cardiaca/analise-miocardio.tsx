@@ -703,9 +703,23 @@ const RADIAL_LINES = [
 
 // ══════════════════════════════════════════════════════════
 // Cycle Bullseye — MRI-style (black bg, white enhancement)
+// With hatch overlays for edema & no-reflow, motion color
 // ══════════════════════════════════════════════════════════
 
-function CycleBullseye({ segmentosPorPadrao, onSegDown, onSegEnter, onMouseUp, numCamadas = 3, contratilidade = {}, edemaSegs = {}, noReflowSegs = {}, activeBrush }: {
+// Build a clip path for a full segment (outer ring, all layers combined)
+function segClipPath(segId: number): string {
+  const ring = getSegRing(segId)
+  if (segId === 17) {
+    // Full circle for apex
+    return `M${(BCX - ring.rO).toFixed(1)},${BCY} A${ring.rO.toFixed(1)},${ring.rO.toFixed(1)} 0 1 1 ${(BCX + ring.rO).toFixed(1)},${BCY} A${ring.rO.toFixed(1)},${ring.rO.toFixed(1)} 0 1 1 ${(BCX - ring.rO).toFixed(1)},${BCY}Z`
+  }
+  const ang = SEG_ANGLES[segId]
+  return arcPath(BCX, BCY, ring.rO, ring.rI, ang.s, ang.e)
+}
+
+type BullseyeTab = 'pattern' | 'motion' | 'markers'
+
+function CycleBullseye({ segmentosPorPadrao, onSegDown, onSegEnter, onMouseUp, numCamadas = 3, contratilidade = {}, edemaSegs = {}, noReflowSegs = {}, activeBrush, activeTab = 'pattern', hoveredSeg, onHoverSeg }: {
   segmentosPorPadrao: Record<string, Set<number>>
   onSegDown: (seg: number) => void
   onSegEnter: (seg: number) => void
@@ -715,17 +729,21 @@ function CycleBullseye({ segmentosPorPadrao, onSegDown, onSegEnter, onMouseUp, n
   edemaSegs?: Record<number, boolean>
   noReflowSegs?: Record<number, boolean>
   activeBrush?: string | null
+  activeTab?: BullseyeTab
+  hoveredSeg?: number | null
+  onHoverSeg?: (seg: number | null) => void
 }) {
   const segPattern = new Map<number, string>()
   for (const [padrao, segs] of Object.entries(segmentosPorPadrao)) {
     for (const seg of segs) segPattern.set(seg, padrao)
   }
   const motionColor = (key: string) => MOTION_TYPES.find(m => m.key === key)?.cor || '#888'
-  const brushCursor = activeBrush ? 'crosshair' : 'pointer'
+  const brushCursor = (activeTab === 'pattern') ? 'pointer' : 'crosshair'
 
   const segHandlers = (segId: number) => ({
     onMouseDown: (e: React.MouseEvent) => { e.preventDefault(); onSegDown(segId) },
-    onMouseEnter: () => onSegEnter(segId),
+    onMouseEnter: () => { onSegEnter(segId); onHoverSeg?.(segId) },
+    onMouseLeave: () => onHoverSeg?.(null),
     style: { cursor: brushCursor, transition: 'fill 0.15s' } as React.CSSProperties,
   })
 
@@ -737,9 +755,17 @@ function CycleBullseye({ segmentosPorPadrao, onSegDown, onSegEnter, onMouseUp, n
     const isApex = segId === 17
     const h = segHandlers(segId)
 
+    // On motion tab, show motion color as a subtle tint on the whole segment
+    const mot = contratilidade[segId]
+    const motTint = (activeTab === 'motion' && mot) ? motionColor(mot) + '44' : null
+
     return sublayers.map((sl, idx) => {
       const on = active.has(idx)
-      const fill = on ? '#e8e8e8' : 'rgba(255,255,255,0.04)'
+      let fill = on ? '#e8e8e8' : 'rgba(255,255,255,0.04)'
+      // On motion tab, tint active layers with motion color
+      if (motTint && on) fill = motionColor(mot!) + '88'
+      else if (motTint && !on) fill = motionColor(mot!) + '18'
+
       if (isApex && sl.rI < 0.1) {
         return <circle key={`${segId}-${idx}`} cx={BCX} cy={BCY} r={sl.rO}
           fill={fill} stroke="rgba(255,255,255,0.08)" strokeWidth={0.5} {...h} />
@@ -756,28 +782,90 @@ function CycleBullseye({ segmentosPorPadrao, onSegDown, onSegEnter, onMouseUp, n
     })
   }
 
-  // Render all indicator dots for a segment
+  // Render hatch overlay for edema/no-reflow on a segment
+  const renderMarkerOverlay = (segId: number) => {
+    const overlays: React.ReactNode[] = []
+    const hasEdema = edemaSegs[segId]
+    const hasNoReflow = noReflowSegs[segId]
+    if (!hasEdema && !hasNoReflow) return null
+
+    const clipId = `seg-clip-${segId}`
+    return (
+      <g key={`overlay-${segId}`} style={{ pointerEvents: 'none' }}>
+        <clipPath id={clipId}>
+          <path d={segClipPath(segId)} />
+        </clipPath>
+        {hasEdema && (
+          <rect x={0} y={0} width={BS} height={BS}
+            fill="url(#hatch-edema)" clipPath={`url(#${clipId})`} opacity={0.7} />
+        )}
+        {hasNoReflow && (
+          <rect x={0} y={0} width={BS} height={BS}
+            fill="url(#hatch-noreflow)" clipPath={`url(#${clipId})`} opacity={0.8} />
+        )}
+      </g>
+    )
+  }
+
+  // Render small indicator dots (compact, below label) — only for non-active tabs
   const renderDots = (lx: number, ly: number, segId: number) => {
     const dots: React.ReactNode[] = []
     const mot = contratilidade[segId]
-    if (mot) dots.push(<circle key={`m${segId}`} cx={lx} cy={ly + 7} r={3.5} fill={motionColor(mot)} stroke="#111" strokeWidth={0.8} style={{ pointerEvents: 'none' }} />)
-    if (edemaSegs[segId]) dots.push(<circle key={`e${segId}`} cx={lx - 6} cy={ly - 5} r={2.8} fill="#38bdf8" stroke="#111" strokeWidth={0.6} style={{ pointerEvents: 'none' }} />)
-    if (noReflowSegs[segId]) dots.push(<circle key={`n${segId}`} cx={lx + 6} cy={ly - 5} r={2.8} fill="#f97316" stroke="#111" strokeWidth={0.6} style={{ pointerEvents: 'none' }} />)
+    // Show motion dot only on pattern/markers tab
+    if (mot && activeTab !== 'motion') {
+      dots.push(<circle key={`m${segId}`} cx={lx} cy={ly + 6} r={2.5} fill={motionColor(mot)} stroke="#111" strokeWidth={0.5} style={{ pointerEvents: 'none' }} />)
+    }
+    // Show marker dots only on pattern/motion tab (not markers tab since hatch is visible)
+    if (activeTab !== 'markers') {
+      if (edemaSegs[segId]) dots.push(<circle key={`e${segId}`} cx={lx - 5} cy={ly - 5} r={2} fill="#38bdf8" stroke="#111" strokeWidth={0.4} style={{ pointerEvents: 'none' }} />)
+      if (noReflowSegs[segId]) dots.push(<circle key={`n${segId}`} cx={lx + 5} cy={ly - 5} r={2} fill="#f97316" stroke="#111" strokeWidth={0.4} style={{ pointerEvents: 'none' }} />)
+    }
     return dots
+  }
+
+  // Hovered segment highlight ring
+  const renderHoverHighlight = (segId: number) => {
+    if (!hoveredSeg || hoveredSeg !== segId) return null
+    const ring = getSegRing(segId)
+    if (segId === 17) {
+      return <circle cx={BCX} cy={BCY} r={ring.rO} fill="none" stroke="rgba(255,255,255,0.4)" strokeWidth={2} style={{ pointerEvents: 'none' }} />
+    }
+    const ang = SEG_ANGLES[segId]
+    return <path d={arcPath(BCX, BCY, ring.rO, ring.rI, ang.s, ang.e)} fill="none" stroke="rgba(255,255,255,0.4)" strokeWidth={2} style={{ pointerEvents: 'none' }} />
   }
 
   return (
     <svg viewBox={`0 0 ${BS} ${BS}`} className="w-full max-w-[280px] mx-auto select-none"
-      onMouseUp={onMouseUp} onMouseLeave={onMouseUp}>
+      onMouseUp={onMouseUp} onMouseLeave={() => { onMouseUp(); onHoverSeg?.(null) }}>
+      <defs>
+        {/* Edema: diagonal cyan lines */}
+        <pattern id="hatch-edema" patternUnits="userSpaceOnUse" width={6} height={6} patternTransform="rotate(45)">
+          <line x1={0} y1={0} x2={0} y2={6} stroke="#38bdf8" strokeWidth={1.5} />
+        </pattern>
+        {/* No-reflow: dense dark dots/crosshatch */}
+        <pattern id="hatch-noreflow" patternUnits="userSpaceOnUse" width={5} height={5}>
+          <circle cx={2.5} cy={2.5} r={1.2} fill="#f97316" />
+        </pattern>
+      </defs>
       <rect x={0} y={0} width={BS} height={BS} rx={10} fill="#111" />
       {Object.keys(SEG_ANGLES).map(Number).map(segId => renderSegLayers(segId))}
       {renderSegLayers(17)}
+      {/* Hatch overlays for markers */}
+      {activeTab === 'markers' && (
+        <>
+          {Object.keys(SEG_ANGLES).map(Number).map(segId => renderMarkerOverlay(segId))}
+          {renderMarkerOverlay(17)}
+        </>
+      )}
       {[R1, R2, R3, R4].map(r => (
         <circle key={`ring-${r}`} cx={BCX} cy={BCY} r={r} fill="none" stroke="rgba(255,255,255,0.25)" strokeWidth={1.5} style={{ pointerEvents: 'none' }} />
       ))}
       {RADIAL_LINES.map((l, i) => (
         <line key={`rad-${i}`} x1={l.x1} y1={l.y1} x2={l.x2} y2={l.y2} stroke="rgba(255,255,255,0.25)" strokeWidth={1.5} style={{ pointerEvents: 'none' }} />
       ))}
+      {/* Hover highlight */}
+      {Object.keys(SEG_ANGLES).map(Number).map(segId => renderHoverHighlight(segId))}
+      {renderHoverHighlight(17)}
       {SEG_LABELS.map(seg => {
         const pat = segPattern.get(seg.id)
         const midIdx = Math.floor(numCamadas / 2)
@@ -812,14 +900,24 @@ function DiseaseCard({ config, instance, onUpdate, onRemove }: {
   onUpdate: (updates: Partial<DiseaseInstance>) => void
   onRemove: () => void
 }) {
+  const hasTabs = !!(config.temContratilidade || config.temMarkers)
+  const [activeTab, setActiveTab] = useState<BullseyeTab>('pattern')
   const [activeBrush, setActiveBrush] = useState<string | null>(null)
   const [isPainting, setIsPainting] = useState(false)
   const [paintAction, setPaintAction] = useState<'add' | 'remove'>('add')
+  const [hoveredSeg, setHoveredSeg] = useState<number | null>(null)
   const texto = gerarTextoInstancia(instance)
   const conclusao = gerarConclusaoInstancia(instance)
 
   const updateExtra = (key: string, value: string | boolean | number) => {
     onUpdate({ extras: { ...instance.extras, [key]: value } })
+  }
+
+  // When switching tabs, clear active brush
+  const switchTab = (tab: BullseyeTab) => {
+    setActiveTab(tab)
+    setActiveBrush(null)
+    setIsPainting(false)
   }
 
   // Apply brush to a segment
@@ -842,9 +940,10 @@ function DiseaseCard({ config, instance, onUpdate, onRemove }: {
 
   // Drag painting: mousedown starts, mouseenter continues, mouseup stops
   const handleSegDown = (seg: number) => {
-    if (activeBrush && (config.temContratilidade || config.temMarkers)) {
+    if (activeTab === 'pattern') {
+      cycleSeg(seg)
+    } else if (activeBrush) {
       setIsPainting(true)
-      // Determine add or remove based on current state
       let isAlreadySet = false
       if (activeBrush === 'edema') isAlreadySet = !!instance.edemaSegs[seg]
       else if (activeBrush === 'noReflow') isAlreadySet = !!instance.noReflowSegs[seg]
@@ -852,8 +951,6 @@ function DiseaseCard({ config, instance, onUpdate, onRemove }: {
       const action = isAlreadySet ? 'remove' : 'add'
       setPaintAction(action)
       applyBrush(seg, action)
-    } else {
-      cycleSeg(seg)
     }
   }
 
@@ -894,6 +991,35 @@ function DiseaseCard({ config, instance, onUpdate, onRemove }: {
 
   const totalSegs = Object.values(instance.segmentosPorPadrao).reduce((sum, s) => sum + s.size, 0)
   const motionCount = Object.keys(instance.contratilidade).length
+  const edemaCount = Object.keys(instance.edemaSegs).filter(k => instance.edemaSegs[Number(k)]).length
+  const noReflowCount = Object.keys(instance.noReflowSegs).filter(k => instance.noReflowSegs[Number(k)]).length
+
+  // Build tooltip text for hovered segment
+  const tooltipText = hoveredSeg ? (() => {
+    const parts: string[] = [`Seg ${hoveredSeg}: ${SEGMENT_NAMES[hoveredSeg]}`]
+    // Pattern
+    for (const [padrao, segs] of Object.entries(instance.segmentosPorPadrao)) {
+      if (segs.has(hoveredSeg)) {
+        const pLabel = config.padroes.find(p => p.value === padrao)?.label || padrao
+        parts.push(`Realce: ${pLabel}`)
+      }
+    }
+    // Motion
+    const mot = instance.contratilidade[hoveredSeg]
+    if (mot) parts.push(`Motilidade: ${MOTION_LABELS[mot] || mot}`)
+    // Edema
+    if (instance.edemaSegs[hoveredSeg]) parts.push('Edema: sim')
+    // No-reflow
+    if (instance.noReflowSegs[hoveredSeg]) parts.push('No-reflow: sim')
+    return parts
+  })() : null
+
+  // Tab definitions
+  const tabs: { key: BullseyeTab; label: string; badge?: number }[] = [
+    { key: 'pattern', label: 'Realce', badge: totalSegs },
+  ]
+  if (config.temContratilidade) tabs.push({ key: 'motion', label: 'Motilidade', badge: motionCount })
+  if (config.temMarkers) tabs.push({ key: 'markers', label: 'Marcadores', badge: edemaCount + noReflowCount })
 
   return (
     <div className="rounded-xl border overflow-hidden" style={{ borderColor: config.cor + '55', backgroundColor: 'var(--surface)' }}>
@@ -910,63 +1036,93 @@ function DiseaseCard({ config, instance, onUpdate, onRemove }: {
         {/* Single bullseye — click cycles through patterns */}
         {config.usaBullseye && (
           <div className="pt-3">
+            {/* Tab bar */}
+            {hasTabs && tabs.length > 1 && (
+              <div className="flex gap-0 mb-3 rounded-lg overflow-hidden border" style={{ borderColor: 'var(--border)' }}>
+                {tabs.map(tab => {
+                  const isActive = activeTab === tab.key
+                  return (
+                    <button key={tab.key} type="button" onClick={() => switchTab(tab.key)}
+                      className="flex-1 px-2 py-1.5 text-[11px] font-semibold transition-all flex items-center justify-center gap-1"
+                      style={isActive
+                        ? { backgroundColor: config.cor + '22', color: config.cor, borderBottom: `2px solid ${config.cor}` }
+                        : { backgroundColor: 'transparent', color: 'var(--text3)', borderBottom: '2px solid transparent' }
+                      }>
+                      {tab.label}
+                      {(tab.badge ?? 0) > 0 && (
+                        <span className="text-[9px] px-1 py-0 rounded-full font-bold" style={{
+                          backgroundColor: isActive ? config.cor + '33' : 'var(--border)',
+                          color: isActive ? config.cor : 'var(--text3)',
+                        }}>{tab.badge}</span>
+                      )}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+
+            {/* Tab instruction */}
             <label className="block text-xs font-semibold mb-2" style={{ color: 'var(--text3)' }}>
-              Segmentos ({totalSegs}/17) — {activeBrush ? 'arraste para pintar' : 'clique para alternar padrão'}
+              {activeTab === 'pattern' && `Segmentos (${totalSegs}/17) — clique para alternar padrão`}
+              {activeTab === 'motion' && `Motilidade (${motionCount} segs) — selecione o tipo e arraste para pintar`}
+              {activeTab === 'markers' && `Marcadores — selecione edema ou no-reflow e arraste para pintar`}
             </label>
 
             <div className="flex gap-3 items-start">
-              {/* Brush palette */}
-              {(config.temContratilidade || config.temMarkers) && (
+              {/* Brush palette — only show on motion/markers tabs */}
+              {activeTab === 'motion' && config.temContratilidade && (
                 <div className="flex flex-col gap-1 pt-1 shrink-0">
-                  {config.temContratilidade && (<>
-                    <span className="text-[9px] font-bold uppercase tracking-wider mb-0.5" style={{ color: 'var(--text3)' }}>Motilidade</span>
-                    {MOTION_TYPES.map(m => {
-                      const isActive = activeBrush === m.key
-                      const count = Object.values(instance.contratilidade).filter(v => v === m.key).length
-                      return (
-                        <button key={m.key} type="button" onClick={() => setActiveBrush(isActive ? null : m.key)}
-                          className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-[10px] font-semibold transition-all border text-left whitespace-nowrap"
-                          style={isActive
-                            ? { backgroundColor: m.cor + '22', borderColor: m.cor, color: m.cor, boxShadow: `0 0 6px ${m.cor}44` }
-                            : { backgroundColor: 'transparent', borderColor: 'var(--border)', color: 'var(--text3)' }
-                          }>
-                          <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: m.cor }} />
-                          {m.label}
-                          {count > 0 && <span className="ml-auto opacity-70">({count})</span>}
-                        </button>
-                      )
-                    })}
-                  </>)}
-                  {config.temMarkers && (<>
-                    <span className="text-[9px] font-bold uppercase tracking-wider mt-2 mb-0.5" style={{ color: 'var(--text3)' }}>Marcadores</span>
-                    {MARKER_BRUSHES.map(m => {
-                      const isActive = activeBrush === m.key
-                      const count = m.key === 'edema'
-                        ? Object.keys(instance.edemaSegs).filter(k => instance.edemaSegs[Number(k)]).length
-                        : Object.keys(instance.noReflowSegs).filter(k => instance.noReflowSegs[Number(k)]).length
-                      return (
-                        <button key={m.key} type="button" onClick={() => setActiveBrush(isActive ? null : m.key)}
-                          className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-[10px] font-semibold transition-all border text-left whitespace-nowrap"
-                          style={isActive
-                            ? { backgroundColor: m.cor + '22', borderColor: m.cor, color: m.cor, boxShadow: `0 0 6px ${m.cor}44` }
-                            : { backgroundColor: 'transparent', borderColor: 'var(--border)', color: 'var(--text3)' }
-                          }>
-                          <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: m.cor }} />
-                          {m.label}
-                          {count > 0 && <span className="ml-auto opacity-70">({count})</span>}
-                        </button>
-                      )
-                    })}
-                  </>)}
+                  {MOTION_TYPES.map(m => {
+                    const isActive = activeBrush === m.key
+                    const count = Object.values(instance.contratilidade).filter(v => v === m.key).length
+                    return (
+                      <button key={m.key} type="button" onClick={() => setActiveBrush(isActive ? null : m.key)}
+                        className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-[11px] font-semibold transition-all border text-left whitespace-nowrap"
+                        style={isActive
+                          ? { backgroundColor: m.cor + '22', borderColor: m.cor, color: m.cor, boxShadow: `0 0 8px ${m.cor}44` }
+                          : { backgroundColor: 'transparent', borderColor: 'var(--border)', color: 'var(--text3)' }
+                        }>
+                        <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: m.cor }} />
+                        {m.label}
+                        {count > 0 && <span className="ml-1 opacity-70">({count})</span>}
+                      </button>
+                    )
+                  })}
                   {motionCount > 0 && (
-                    <button type="button" onClick={() => { setActiveBrush(null); onUpdate({ contratilidade: {}, edemaSegs: {}, noReflowSegs: {} }) }}
-                      className="text-[9px] px-2 py-1 rounded border mt-2"
-                      style={{ borderColor: 'var(--border)', color: 'var(--text3)' }}>Limpar tudo</button>
+                    <button type="button" onClick={() => { setActiveBrush(null); onUpdate({ contratilidade: {} }) }}
+                      className="text-[10px] px-2 py-1 rounded border mt-1"
+                      style={{ borderColor: 'var(--border)', color: 'var(--text3)' }}>Limpar motilidade</button>
+                  )}
+                </div>
+              )}
+              {activeTab === 'markers' && config.temMarkers && (
+                <div className="flex flex-col gap-1.5 pt-1 shrink-0">
+                  {MARKER_BRUSHES.map(m => {
+                    const isActive = activeBrush === m.key
+                    const count = m.key === 'edema' ? edemaCount : noReflowCount
+                    const patternIcon = m.key === 'edema' ? '///' : '...'
+                    return (
+                      <button key={m.key} type="button" onClick={() => setActiveBrush(isActive ? null : m.key)}
+                        className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-[11px] font-semibold transition-all border text-left whitespace-nowrap"
+                        style={isActive
+                          ? { backgroundColor: m.cor + '22', borderColor: m.cor, color: m.cor, boxShadow: `0 0 8px ${m.cor}44` }
+                          : { backgroundColor: 'transparent', borderColor: 'var(--border)', color: 'var(--text3)' }
+                        }>
+                        <span className="w-5 h-3 rounded-sm shrink-0 text-[8px] font-mono flex items-center justify-center" style={{ backgroundColor: m.cor + '33', color: m.cor }}>{patternIcon}</span>
+                        {m.label}
+                        {count > 0 && <span className="ml-1 opacity-70">({count})</span>}
+                      </button>
+                    )
+                  })}
+                  {(edemaCount > 0 || noReflowCount > 0) && (
+                    <button type="button" onClick={() => { setActiveBrush(null); onUpdate({ edemaSegs: {}, noReflowSegs: {} }) }}
+                      className="text-[10px] px-2 py-1 rounded border mt-1"
+                      style={{ borderColor: 'var(--border)', color: 'var(--text3)' }}>Limpar marcadores</button>
                   )}
                 </div>
               )}
 
-              <div className="flex-1 min-w-0">
+              <div className="flex-1 min-w-0 relative">
                 <CycleBullseye
                   segmentosPorPadrao={instance.segmentosPorPadrao}
                   onSegDown={handleSegDown}
@@ -977,25 +1133,55 @@ function DiseaseCard({ config, instance, onUpdate, onRemove }: {
                   edemaSegs={instance.edemaSegs}
                   noReflowSegs={instance.noReflowSegs}
                   activeBrush={activeBrush}
+                  activeTab={activeTab}
+                  hoveredSeg={hoveredSeg}
+                  onHoverSeg={setHoveredSeg}
                 />
+                {/* Tooltip */}
+                {tooltipText && (
+                  <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-1 px-2.5 py-1.5 rounded-lg text-[10px] leading-tight whitespace-nowrap pointer-events-none z-10"
+                    style={{ backgroundColor: 'rgba(0,0,0,0.88)', color: '#fff', border: '1px solid rgba(255,255,255,0.15)' }}>
+                    {tooltipText.map((line, i) => (
+                      <div key={i} className={i === 0 ? 'font-bold mb-0.5' : 'opacity-80'}>{line}</div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 
-            {/* Legend */}
-            <div className="flex flex-wrap gap-1.5 mt-2 justify-center">
-              {config.padroes.map(p => {
-                const count = instance.segmentosPorPadrao[p.value]?.size || 0
-                return (
-                  <span key={p.value} className="text-[10px] px-2 py-0.5 rounded border"
-                    style={{
-                      borderColor: count > 0 ? config.cor : 'var(--border)',
-                      color: count > 0 ? config.cor : 'var(--text3)',
-                      backgroundColor: count > 0 ? config.cor + '0A' : 'transparent',
-                    }}
-                  >{p.label} ({count})</span>
-                )
-              })}
-            </div>
+            {/* Legend — context-dependent */}
+            {activeTab === 'pattern' && (
+              <div className="flex flex-wrap gap-1.5 mt-2 justify-center">
+                {config.padroes.map(p => {
+                  const count = instance.segmentosPorPadrao[p.value]?.size || 0
+                  return (
+                    <span key={p.value} className="text-[10px] px-2 py-0.5 rounded border"
+                      style={{
+                        borderColor: count > 0 ? config.cor : 'var(--border)',
+                        color: count > 0 ? config.cor : 'var(--text3)',
+                        backgroundColor: count > 0 ? config.cor + '0A' : 'transparent',
+                      }}
+                    >{p.label} ({count})</span>
+                  )
+                })}
+              </div>
+            )}
+            {activeTab === 'markers' && (
+              <div className="flex flex-wrap gap-2 mt-2 justify-center">
+                <span className="text-[10px] px-2 py-0.5 rounded border flex items-center gap-1" style={{
+                  borderColor: edemaCount > 0 ? '#38bdf8' : 'var(--border)',
+                  color: edemaCount > 0 ? '#38bdf8' : 'var(--text3)',
+                }}>
+                  <span className="font-mono text-[8px]">///</span> Edema ({edemaCount})
+                </span>
+                <span className="text-[10px] px-2 py-0.5 rounded border flex items-center gap-1" style={{
+                  borderColor: noReflowCount > 0 ? '#f97316' : 'var(--border)',
+                  color: noReflowCount > 0 ? '#f97316' : 'var(--text3)',
+                }}>
+                  <span className="font-mono text-[8px]">...</span> No-reflow ({noReflowCount})
+                </span>
+              </div>
+            )}
             <div className="flex justify-center gap-2 mt-2">
               <button type="button" onClick={selectAllMax}
                 className="text-[10px] px-3 py-1 rounded border"
