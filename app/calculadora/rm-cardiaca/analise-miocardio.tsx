@@ -63,6 +63,7 @@ interface DiseaseConfig {
   sufixoTexto?: string // appended after segment list
   numCamadas?: number  // wall subdivisions: 3 (default, miocardite/etc) or 4 (infarto)
   temContratilidade?: boolean // per-segment wall motion abnormalities
+  temMarkers?: boolean // per-segment edema + no-reflow brushes
   opcoes?: DiseaseOption[]
 }
 
@@ -117,6 +118,7 @@ const DISEASE_CONFIGS: DiseaseConfig[] = [
     usaBullseye: true,
     numCamadas: 4,
     temContratilidade: true,
+    temMarkers: true,
     temEdema: false,
     temMassa: true,
     temTerritorio: true,
@@ -240,6 +242,9 @@ interface DiseaseInstance {
   segmentosPorPadrao: Record<string, Set<number>>
   // per-segment wall motion abnormality (seg -> motion key)
   contratilidade: Record<number, string>
+  // per-segment markers (infarto: edema, no-reflow)
+  edemaSegs: Record<number, boolean>
+  noReflowSegs: Record<number, boolean>
   edema: boolean
   massa: string
   massaPct: string
@@ -276,6 +281,8 @@ function createInstance(diseaseId: string, nextId: number): DiseaseInstance {
     diseaseId,
     segmentosPorPadrao,
     contratilidade: {},
+    edemaSegs: {},
+    noReflowSegs: {},
     edema: false,
     massa: '',
     massaPct: '',
@@ -323,6 +330,18 @@ const MOTION_LABELS: Record<string, string> = {
   hipocinesia: 'hipocinesia',
   acinesia: 'acinesia',
   discinesia: 'discinesia',
+}
+
+const MARKER_BRUSHES = [
+  { key: 'edema', label: 'Edema', cor: '#38bdf8' },
+  { key: 'noReflow', label: 'No-reflow', cor: '#f97316' },
+] as const
+
+const TRANSMURAL_DESC: Record<string, string> = {
+  inf_lt25: 'inferior a 25%',
+  inf_25_50: 'de 25 a 50%',
+  inf_50_75: 'de 50 a 75%',
+  transmural: 'transmural',
 }
 
 function gerarTextoInstancia(inst: DiseaseInstance): string {
@@ -391,18 +410,42 @@ function gerarTextoInstancia(inst: DiseaseInstance): string {
     return parts.join('. ')
   }
 
-  // Infarto: include per-segment contratilidade and afilamento
+  // Infarto: single sentence — "Realce tardio [padrão] com comprometimento [X] da transmuralidade nos [segs], associados a [achados]"
   if (cfg.id === 'infarto') {
-    const afilamento = ex.afilamento ? 'Afilamento parietal. ' : ''
-    const contratTexto = gerarContratTexto(inst.contratilidade)
-    const contratPrefix = contratTexto ? `${contratTexto}. ` : ''
-    if (padroesAtivos.length === 1) {
-      const p = padroesAtivos[0]
-      texto = `${afilamento}${contratPrefix}Realce tardio ${p.label} (${tipoStr}) nos ${listarSegmentos(p.segs)}`
+    // Build transmurality description per pattern group
+    const transDesc = padroesAtivos.map(p => {
+      const desc = TRANSMURAL_DESC[p.value] || p.label
+      if (p.value === 'transmural') {
+        return `transmural nos ${listarSegmentos(p.segs)}`
+      }
+      return `com comprometimento ${desc} da transmuralidade nos ${listarSegmentos(p.segs)}`
+    })
+    if (transDesc.length === 1) {
+      texto = `Realce tardio subendocárdico ${transDesc[0]}`
     } else {
-      const partes = padroesAtivos.map(p => `${p.label} nos ${listarSegmentos(p.segs)}`)
-      const last = partes.pop()!
-      texto = `${afilamento}${contratPrefix}Realce tardio (${tipoStr}): ${partes.join(', ')}, e ${last}`
+      texto = `Realce tardio subendocárdico ${transDesc[0]}, e ${transDesc.slice(1).join(', e ')}`
+    }
+
+    // Associated findings in the same sentence
+    const assoc: string[] = []
+    if (ex.afilamento) assoc.push('redução da espessura parietal')
+    // Per-segment contratilidade grouped
+    const contratTexto = gerarContratTexto(inst.contratilidade)
+    if (contratTexto) assoc.push(contratTexto.toLowerCase())
+    if (assoc.length > 0) texto += `, associado a ${assoc.join(' e ')}`
+
+    // Edema per segment
+    const edemaKeys = Object.keys(inst.edemaSegs).filter(k => inst.edemaSegs[Number(k)])
+    if (edemaKeys.length > 0) {
+      const edemaSet = new Set(edemaKeys.map(Number))
+      texto += `. Edema miocárdico nos ${listarSegmentos(edemaSet)}`
+    }
+
+    // No-reflow per segment
+    const nrKeys = Object.keys(inst.noReflowSegs).filter(k => inst.noReflowSegs[Number(k)])
+    if (nrKeys.length > 0) {
+      const nrSet = new Set(nrKeys.map(Number))
+      texto += `. Área de no-reflow (obstrução microvascular) nos ${listarSegmentos(nrSet)}`
     }
   } else if (cfg.id === 'miocardite') {
     // Miocardite: include intensidade and per-segment contratilidade
@@ -662,135 +705,99 @@ const RADIAL_LINES = [
 // Cycle Bullseye — MRI-style (black bg, white enhancement)
 // ══════════════════════════════════════════════════════════
 
-function CycleBullseye({ segmentosPorPadrao, onCycleSeg, numCamadas = 3, contratilidade = {}, activeBrush }: {
+function CycleBullseye({ segmentosPorPadrao, onSegDown, onSegEnter, onMouseUp, numCamadas = 3, contratilidade = {}, edemaSegs = {}, noReflowSegs = {}, activeBrush }: {
   segmentosPorPadrao: Record<string, Set<number>>
-  onCycleSeg: (seg: number) => void
+  onSegDown: (seg: number) => void
+  onSegEnter: (seg: number) => void
+  onMouseUp: () => void
   numCamadas?: number
   contratilidade?: Record<number, string>
+  edemaSegs?: Record<number, boolean>
+  noReflowSegs?: Record<number, boolean>
   activeBrush?: string | null
 }) {
-  // Map each segment to its current pattern
   const segPattern = new Map<number, string>()
   for (const [padrao, segs] of Object.entries(segmentosPorPadrao)) {
     for (const seg of segs) segPattern.set(seg, padrao)
   }
-
-  // Motion type color lookup
   const motionColor = (key: string) => MOTION_TYPES.find(m => m.key === key)?.cor || '#888'
+  const brushCursor = activeBrush ? 'crosshair' : 'pointer'
 
-  const renderSegLayers = (segId: number, onClick: () => void) => {
+  const segHandlers = (segId: number) => ({
+    onMouseDown: (e: React.MouseEvent) => { e.preventDefault(); onSegDown(segId) },
+    onMouseEnter: () => onSegEnter(segId),
+    style: { cursor: brushCursor, transition: 'fill 0.15s' } as React.CSSProperties,
+  })
+
+  const renderSegLayers = (segId: number) => {
     const ring = getSegRing(segId)
     const sublayers = splitRingN(ring.rO, ring.rI, numCamadas)
     const pat = segPattern.get(segId)
     const active = pat ? getActiveLayers(pat, numCamadas) : new Set<number>()
     const isApex = segId === 17
-    const brushCursor = activeBrush ? 'crosshair' : 'pointer'
+    const h = segHandlers(segId)
 
     return sublayers.map((sl, idx) => {
       const on = active.has(idx)
       const fill = on ? '#e8e8e8' : 'rgba(255,255,255,0.04)'
-
       if (isApex && sl.rI < 0.1) {
         return <circle key={`${segId}-${idx}`} cx={BCX} cy={BCY} r={sl.rO}
-          fill={fill} stroke="rgba(255,255,255,0.08)" strokeWidth={0.5}
-          onClick={onClick} style={{ cursor: brushCursor, transition: 'fill 0.15s' }} />
+          fill={fill} stroke="rgba(255,255,255,0.08)" strokeWidth={0.5} {...h} />
       }
       if (isApex) {
         const d = `M${(BCX-sl.rO).toFixed(1)},${BCY} A${sl.rO.toFixed(1)},${sl.rO.toFixed(1)} 0 1 1 ${(BCX+sl.rO).toFixed(1)},${BCY} A${sl.rO.toFixed(1)},${sl.rO.toFixed(1)} 0 1 1 ${(BCX-sl.rO).toFixed(1)},${BCY} ` +
                   `M${(BCX-sl.rI).toFixed(1)},${BCY} A${sl.rI.toFixed(1)},${sl.rI.toFixed(1)} 0 1 0 ${(BCX+sl.rI).toFixed(1)},${BCY} A${sl.rI.toFixed(1)},${sl.rI.toFixed(1)} 0 1 0 ${(BCX-sl.rI).toFixed(1)},${BCY}`
         return <path key={`${segId}-${idx}`} d={d} fill={fill} fillRule="evenodd"
-          stroke="rgba(255,255,255,0.08)" strokeWidth={0.5}
-          onClick={onClick} style={{ cursor: brushCursor, transition: 'fill 0.15s' }} />
+          stroke="rgba(255,255,255,0.08)" strokeWidth={0.5} {...h} />
       }
       const ang = SEG_ANGLES[segId]
       return <path key={`${segId}-${idx}`} d={arcPath(BCX, BCY, sl.rO, sl.rI, ang.s, ang.e)}
-        fill={fill} stroke="rgba(255,255,255,0.08)" strokeWidth={0.5}
-        onClick={onClick} style={{ cursor: brushCursor, transition: 'fill 0.15s' }} />
+        fill={fill} stroke="rgba(255,255,255,0.08)" strokeWidth={0.5} {...h} />
     })
   }
 
-  // Render motion indicator dot on segments
-  const renderMotionDots = () => {
+  // Render all indicator dots for a segment
+  const renderDots = (lx: number, ly: number, segId: number) => {
     const dots: React.ReactNode[] = []
-    for (const seg of SEG_LABELS) {
-      const mot = contratilidade[seg.id]
-      if (!mot) continue
-      const cor = motionColor(mot)
-      // Place dot slightly below the label
-      dots.push(
-        <circle key={`mot-${seg.id}`} cx={seg.lbl.x} cy={seg.lbl.y + 7}
-          r={3.5} fill={cor} stroke="#111" strokeWidth={0.8}
-          style={{ pointerEvents: 'none' }} />
-      )
-    }
-    // Apex (17)
-    if (contratilidade[17]) {
-      const cor = motionColor(contratilidade[17])
-      dots.push(
-        <circle key="mot-17" cx={BCX} cy={BCY + 7}
-          r={3.5} fill={cor} stroke="#111" strokeWidth={0.8}
-          style={{ pointerEvents: 'none' }} />
-      )
-    }
+    const mot = contratilidade[segId]
+    if (mot) dots.push(<circle key={`m${segId}`} cx={lx} cy={ly + 7} r={3.5} fill={motionColor(mot)} stroke="#111" strokeWidth={0.8} style={{ pointerEvents: 'none' }} />)
+    if (edemaSegs[segId]) dots.push(<circle key={`e${segId}`} cx={lx - 6} cy={ly - 5} r={2.8} fill="#38bdf8" stroke="#111" strokeWidth={0.6} style={{ pointerEvents: 'none' }} />)
+    if (noReflowSegs[segId]) dots.push(<circle key={`n${segId}`} cx={lx + 6} cy={ly - 5} r={2.8} fill="#f97316" stroke="#111" strokeWidth={0.6} style={{ pointerEvents: 'none' }} />)
     return dots
   }
 
   return (
-    <svg viewBox={`0 0 ${BS} ${BS}`} className="w-full max-w-[280px] mx-auto">
-      {/* Black background */}
+    <svg viewBox={`0 0 ${BS} ${BS}`} className="w-full max-w-[280px] mx-auto select-none"
+      onMouseUp={onMouseUp} onMouseLeave={onMouseUp}>
       <rect x={0} y={0} width={BS} height={BS} rx={10} fill="#111" />
-
-      {/* Segments 1-16 */}
-      {Object.keys(SEG_ANGLES).map(Number).map(segId =>
-        renderSegLayers(segId, () => onCycleSeg(segId))
-      )}
-
-      {/* Apex (17) */}
-      {renderSegLayers(17, () => onCycleSeg(17))}
-
-      {/* Ring borders */}
+      {Object.keys(SEG_ANGLES).map(Number).map(segId => renderSegLayers(segId))}
+      {renderSegLayers(17)}
       {[R1, R2, R3, R4].map(r => (
-        <circle key={`ring-${r}`} cx={BCX} cy={BCY} r={r}
-          fill="none" stroke="rgba(255,255,255,0.25)" strokeWidth={1.5}
-          style={{ pointerEvents: 'none' }} />
+        <circle key={`ring-${r}`} cx={BCX} cy={BCY} r={r} fill="none" stroke="rgba(255,255,255,0.25)" strokeWidth={1.5} style={{ pointerEvents: 'none' }} />
       ))}
-
-      {/* Radial segment dividers */}
       {RADIAL_LINES.map((l, i) => (
-        <line key={`rad-${i}`} x1={l.x1} y1={l.y1} x2={l.x2} y2={l.y2}
-          stroke="rgba(255,255,255,0.25)" strokeWidth={1.5}
-          style={{ pointerEvents: 'none' }} />
+        <line key={`rad-${i}`} x1={l.x1} y1={l.y1} x2={l.x2} y2={l.y2} stroke="rgba(255,255,255,0.25)" strokeWidth={1.5} style={{ pointerEvents: 'none' }} />
       ))}
-
-      {/* Segment number labels */}
       {SEG_LABELS.map(seg => {
         const pat = segPattern.get(seg.id)
         const midIdx = Math.floor(numCamadas / 2)
         const onMid = pat && getActiveLayers(pat, numCamadas).has(midIdx)
-        return (
-          <text key={`l${seg.id}`} x={seg.lbl.x} y={seg.lbl.y}
-            textAnchor="middle" dominantBaseline="central"
-            fontSize={9} fontWeight="bold"
-            fill={onMid ? '#222' : 'rgba(255,255,255,0.5)'}
-            style={{ pointerEvents: 'none', userSelect: 'none' }}
-          >{seg.id}</text>
-        )
+        return (<g key={`lg${seg.id}`}>
+          <text x={seg.lbl.x} y={seg.lbl.y} textAnchor="middle" dominantBaseline="central" fontSize={9} fontWeight="bold"
+            fill={onMid ? '#222' : 'rgba(255,255,255,0.5)'} style={{ pointerEvents: 'none', userSelect: 'none' }}>{seg.id}</text>
+          {renderDots(seg.lbl.x, seg.lbl.y, seg.id)}
+        </g>)
       })}
       {(() => {
         const pat = segPattern.get(17)
         const midIdx = Math.floor(numCamadas / 2)
         const onMid = pat && getActiveLayers(pat, numCamadas).has(midIdx)
-        return (
-          <text x={BCX} y={BCY} textAnchor="middle" dominantBaseline="central"
-            fontSize={9} fontWeight="bold"
-            fill={onMid ? '#222' : 'rgba(255,255,255,0.5)'}
-            style={{ pointerEvents: 'none', userSelect: 'none' }}
-          >17</text>
-        )
+        return (<g>
+          <text x={BCX} y={BCY} textAnchor="middle" dominantBaseline="central" fontSize={9} fontWeight="bold"
+            fill={onMid ? '#222' : 'rgba(255,255,255,0.5)'} style={{ pointerEvents: 'none', userSelect: 'none' }}>17</text>
+          {renderDots(BCX, BCY, 17)}
+        </g>)
       })()}
-
-      {/* Motion abnormality dots */}
-      {renderMotionDots()}
     </svg>
   )
 }
@@ -806,6 +813,8 @@ function DiseaseCard({ config, instance, onUpdate, onRemove }: {
   onRemove: () => void
 }) {
   const [activeBrush, setActiveBrush] = useState<string | null>(null)
+  const [isPainting, setIsPainting] = useState(false)
+  const [paintAction, setPaintAction] = useState<'add' | 'remove'>('add')
   const texto = gerarTextoInstancia(instance)
   const conclusao = gerarConclusaoInstancia(instance)
 
@@ -813,53 +822,65 @@ function DiseaseCard({ config, instance, onUpdate, onRemove }: {
     onUpdate({ extras: { ...instance.extras, [key]: value } })
   }
 
-  // Handle segment click: if brush active → paint motion, else → cycle enhancement
-  const handleSegClick = (seg: number) => {
-    if (activeBrush && config.temContratilidade) {
-      // Toggle motion on this segment
-      const updated = { ...instance.contratilidade }
-      if (updated[seg] === activeBrush) {
-        delete updated[seg]
-      } else {
-        updated[seg] = activeBrush
-      }
-      onUpdate({ contratilidade: updated })
+  // Apply brush to a segment
+  const applyBrush = (seg: number, action: 'add' | 'remove') => {
+    if (!activeBrush) return
+    if (activeBrush === 'edema') {
+      const u = { ...instance.edemaSegs }
+      action === 'add' ? (u[seg] = true) : delete u[seg]
+      onUpdate({ edemaSegs: u })
+    } else if (activeBrush === 'noReflow') {
+      const u = { ...instance.noReflowSegs }
+      action === 'add' ? (u[seg] = true) : delete u[seg]
+      onUpdate({ noReflowSegs: u })
     } else {
-      // Cycle enhancement pattern
+      const u = { ...instance.contratilidade }
+      action === 'add' ? (u[seg] = activeBrush) : delete u[seg]
+      onUpdate({ contratilidade: u })
+    }
+  }
+
+  // Drag painting: mousedown starts, mouseenter continues, mouseup stops
+  const handleSegDown = (seg: number) => {
+    if (activeBrush && (config.temContratilidade || config.temMarkers)) {
+      setIsPainting(true)
+      // Determine add or remove based on current state
+      let isAlreadySet = false
+      if (activeBrush === 'edema') isAlreadySet = !!instance.edemaSegs[seg]
+      else if (activeBrush === 'noReflow') isAlreadySet = !!instance.noReflowSegs[seg]
+      else isAlreadySet = instance.contratilidade[seg] === activeBrush
+      const action = isAlreadySet ? 'remove' : 'add'
+      setPaintAction(action)
+      applyBrush(seg, action)
+    } else {
       cycleSeg(seg)
     }
   }
 
-  // Cycle a segment through patterns: click advances to next pattern, last click clears
+  const handleSegEnter = (seg: number) => {
+    if (isPainting && activeBrush) applyBrush(seg, paintAction)
+  }
+
+  const handleMouseUp = () => setIsPainting(false)
+
+  // Cycle a segment through patterns
   const cycleSeg = (seg: number) => {
     const updated = { ...instance.segmentosPorPadrao }
     for (const k of Object.keys(updated)) updated[k] = new Set(updated[k])
-
-    // Find which pattern this segment is currently in
     let currentIdx = -1
     for (let i = 0; i < config.padroes.length; i++) {
-      if (updated[config.padroes[i].value]?.has(seg)) {
-        currentIdx = i
-        break
-      }
+      if (updated[config.padroes[i].value]?.has(seg)) { currentIdx = i; break }
     }
-
-    // Remove from current pattern
     if (currentIdx >= 0) updated[config.padroes[currentIdx].value].delete(seg)
-
-    // Add to next pattern (or clear if past last)
     const nextIdx = currentIdx + 1
-    if (nextIdx < config.padroes.length) {
-      updated[config.padroes[nextIdx].value].add(seg)
-    }
-
+    if (nextIdx < config.padroes.length) updated[config.padroes[nextIdx].value].add(seg)
     onUpdate({ segmentosPorPadrao: updated })
   }
 
   const clearAll = () => {
     const updated = { ...instance.segmentosPorPadrao }
     for (const k of Object.keys(updated)) updated[k] = new Set<number>()
-    onUpdate({ segmentosPorPadrao: updated, contratilidade: {} })
+    onUpdate({ segmentosPorPadrao: updated, contratilidade: {}, edemaSegs: {}, noReflowSegs: {} })
   }
 
   const selectAllMax = () => {
@@ -890,52 +911,71 @@ function DiseaseCard({ config, instance, onUpdate, onRemove }: {
         {config.usaBullseye && (
           <div className="pt-3">
             <label className="block text-xs font-semibold mb-2" style={{ color: 'var(--text3)' }}>
-              Segmentos ({totalSegs}/17) — {activeBrush ? 'clique para pintar contratilidade' : 'clique para alternar padrão'}
+              Segmentos ({totalSegs}/17) — {activeBrush ? 'arraste para pintar' : 'clique para alternar padrão'}
             </label>
 
-            {/* Layout: brush palette on the left, bullseye on the right */}
             <div className="flex gap-3 items-start">
-              {/* Brush palette (only for diseases with contratilidade) */}
-              {config.temContratilidade && (
-                <div className="flex flex-col gap-1.5 pt-1 shrink-0">
-                  <span className="text-[9px] font-bold uppercase tracking-wider mb-0.5" style={{ color: 'var(--text3)' }}>
-                    Motilidade
-                  </span>
-                  {MOTION_TYPES.map(m => {
-                    const isActive = activeBrush === m.key
-                    const count = Object.values(instance.contratilidade).filter(v => v === m.key).length
-                    return (
-                      <button key={m.key} type="button"
-                        onClick={() => setActiveBrush(isActive ? null : m.key)}
-                        className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-[10px] font-semibold transition-all border text-left whitespace-nowrap"
-                        style={isActive
-                          ? { backgroundColor: m.cor + '22', borderColor: m.cor, color: m.cor, boxShadow: `0 0 6px ${m.cor}44` }
-                          : { backgroundColor: 'transparent', borderColor: 'var(--border)', color: 'var(--text3)' }
-                        }
-                      >
-                        <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: m.cor }} />
-                        {m.label}
-                        {count > 0 && <span className="ml-auto opacity-70">({count})</span>}
-                      </button>
-                    )
-                  })}
+              {/* Brush palette */}
+              {(config.temContratilidade || config.temMarkers) && (
+                <div className="flex flex-col gap-1 pt-1 shrink-0">
+                  {config.temContratilidade && (<>
+                    <span className="text-[9px] font-bold uppercase tracking-wider mb-0.5" style={{ color: 'var(--text3)' }}>Motilidade</span>
+                    {MOTION_TYPES.map(m => {
+                      const isActive = activeBrush === m.key
+                      const count = Object.values(instance.contratilidade).filter(v => v === m.key).length
+                      return (
+                        <button key={m.key} type="button" onClick={() => setActiveBrush(isActive ? null : m.key)}
+                          className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-[10px] font-semibold transition-all border text-left whitespace-nowrap"
+                          style={isActive
+                            ? { backgroundColor: m.cor + '22', borderColor: m.cor, color: m.cor, boxShadow: `0 0 6px ${m.cor}44` }
+                            : { backgroundColor: 'transparent', borderColor: 'var(--border)', color: 'var(--text3)' }
+                          }>
+                          <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: m.cor }} />
+                          {m.label}
+                          {count > 0 && <span className="ml-auto opacity-70">({count})</span>}
+                        </button>
+                      )
+                    })}
+                  </>)}
+                  {config.temMarkers && (<>
+                    <span className="text-[9px] font-bold uppercase tracking-wider mt-2 mb-0.5" style={{ color: 'var(--text3)' }}>Marcadores</span>
+                    {MARKER_BRUSHES.map(m => {
+                      const isActive = activeBrush === m.key
+                      const count = m.key === 'edema'
+                        ? Object.keys(instance.edemaSegs).filter(k => instance.edemaSegs[Number(k)]).length
+                        : Object.keys(instance.noReflowSegs).filter(k => instance.noReflowSegs[Number(k)]).length
+                      return (
+                        <button key={m.key} type="button" onClick={() => setActiveBrush(isActive ? null : m.key)}
+                          className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-[10px] font-semibold transition-all border text-left whitespace-nowrap"
+                          style={isActive
+                            ? { backgroundColor: m.cor + '22', borderColor: m.cor, color: m.cor, boxShadow: `0 0 6px ${m.cor}44` }
+                            : { backgroundColor: 'transparent', borderColor: 'var(--border)', color: 'var(--text3)' }
+                          }>
+                          <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: m.cor }} />
+                          {m.label}
+                          {count > 0 && <span className="ml-auto opacity-70">({count})</span>}
+                        </button>
+                      )
+                    })}
+                  </>)}
                   {motionCount > 0 && (
-                    <button type="button"
-                      onClick={() => { setActiveBrush(null); onUpdate({ contratilidade: {} }) }}
-                      className="text-[9px] px-2 py-1 rounded border mt-1"
-                      style={{ borderColor: 'var(--border)', color: 'var(--text3)' }}
-                    >Limpar motilidade</button>
+                    <button type="button" onClick={() => { setActiveBrush(null); onUpdate({ contratilidade: {}, edemaSegs: {}, noReflowSegs: {} }) }}
+                      className="text-[9px] px-2 py-1 rounded border mt-2"
+                      style={{ borderColor: 'var(--border)', color: 'var(--text3)' }}>Limpar tudo</button>
                   )}
                 </div>
               )}
 
-              {/* Bullseye */}
               <div className="flex-1 min-w-0">
                 <CycleBullseye
                   segmentosPorPadrao={instance.segmentosPorPadrao}
-                  onCycleSeg={handleSegClick}
+                  onSegDown={handleSegDown}
+                  onSegEnter={handleSegEnter}
+                  onMouseUp={handleMouseUp}
                   numCamadas={config.numCamadas || 3}
                   contratilidade={instance.contratilidade}
+                  edemaSegs={instance.edemaSegs}
+                  noReflowSegs={instance.noReflowSegs}
                   activeBrush={activeBrush}
                 />
               </div>
