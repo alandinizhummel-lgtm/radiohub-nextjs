@@ -62,6 +62,7 @@ interface DiseaseConfig {
   isquemico: boolean
   sufixoTexto?: string // appended after segment list
   numCamadas?: number  // wall subdivisions: 3 (default, miocardite/etc) or 4 (infarto)
+  temContratilidade?: boolean // per-segment wall motion abnormalities
   opcoes?: DiseaseOption[]
 }
 
@@ -77,6 +78,7 @@ const DISEASE_CONFIGS: DiseaseConfig[] = [
       { value: 'transmural', label: 'Transmural' },
     ],
     usaBullseye: true,
+    temContratilidade: true,
     temEdema: true,
     temMassa: true,
     temTerritorio: false,
@@ -114,6 +116,7 @@ const DISEASE_CONFIGS: DiseaseConfig[] = [
     ],
     usaBullseye: true,
     numCamadas: 4,
+    temContratilidade: true,
     temEdema: false,
     temMassa: true,
     temTerritorio: true,
@@ -131,14 +134,6 @@ const DISEASE_CONFIGS: DiseaseConfig[] = [
           { value: 'sem', label: 'Sem viabilidade' },
         ],
         defaultValue: 'com',
-      },
-      {
-        key: 'contratilidade', tipo: 'select', label: 'Contratilidade',
-        opcoes: [
-          { value: 'acinesia', label: 'Acinesia' },
-          { value: 'hipocinesia', label: 'Hipocinesia' },
-        ],
-        defaultValue: 'acinesia',
       },
       { key: 'afilamento', tipo: 'toggle', label: 'Afilamento parietal', defaultValue: false },
     ],
@@ -243,6 +238,8 @@ interface DiseaseInstance {
   diseaseId: string
   // segments per pattern (mutual exclusion within the instance)
   segmentosPorPadrao: Record<string, Set<number>>
+  // per-segment wall motion abnormality (seg -> motion key)
+  contratilidade: Record<number, string>
   edema: boolean
   massa: string
   massaPct: string
@@ -278,6 +275,7 @@ function createInstance(diseaseId: string, nextId: number): DiseaseInstance {
     instanceId: nextId,
     diseaseId,
     segmentosPorPadrao,
+    contratilidade: {},
     edema: false,
     massa: '',
     massaPct: '',
@@ -310,6 +308,21 @@ const TERRITORIO_LABELS: Record<string, string> = {
   DA: 'descendente anterior',
   Cx: 'circunflexa',
   CD: 'coronária direita',
+}
+
+// ── Wall motion abnormalities ────────────────────────────
+const MOTION_TYPES = [
+  { key: 'hipodiscreta', label: 'Hipocinesia discreta', cor: '#60a5fa' },
+  { key: 'hipocinesia', label: 'Hipocinesia', cor: '#fbbf24' },
+  { key: 'acinesia', label: 'Acinesia', cor: '#f87171' },
+  { key: 'discinesia', label: 'Discinesia', cor: '#c084fc' },
+] as const
+
+const MOTION_LABELS: Record<string, string> = {
+  hipodiscreta: 'hipocinesia discreta',
+  hipocinesia: 'hipocinesia',
+  acinesia: 'acinesia',
+  discinesia: 'discinesia',
 }
 
 function gerarTextoInstancia(inst: DiseaseInstance): string {
@@ -358,31 +371,52 @@ function gerarTextoInstancia(inst: DiseaseInstance): string {
 
   let texto: string
 
-  // Infarto: include contratilidade and afilamento
+  // Helper: generate per-segment contratilidade text
+  const gerarContratTexto = (contrat: Record<number, string>): string => {
+    if (Object.keys(contrat).length === 0) return ''
+    // Group segments by motion type
+    const grouped: Record<string, Set<number>> = {}
+    for (const [seg, mot] of Object.entries(contrat)) {
+      if (!grouped[mot]) grouped[mot] = new Set()
+      grouped[mot].add(Number(seg))
+    }
+    const parts: string[] = []
+    for (const m of MOTION_TYPES) {
+      const segs = grouped[m.key]
+      if (segs && segs.size > 0) {
+        const label = MOTION_LABELS[m.key] || m.key
+        parts.push(`${label.charAt(0).toUpperCase() + label.slice(1)} nos ${listarSegmentos(segs)}`)
+      }
+    }
+    return parts.join('. ')
+  }
+
+  // Infarto: include per-segment contratilidade and afilamento
   if (cfg.id === 'infarto') {
-    const allSegs = new Set<number>()
-    for (const p of padroesAtivos) for (const s of p.segs) allSegs.add(s)
-    const contrat = ex.contratilidade === 'hipocinesia' ? 'hipocinesia' : 'acinesia'
-    const afilamento = ex.afilamento ? 'Afilamento parietal, ' : ''
+    const afilamento = ex.afilamento ? 'Afilamento parietal. ' : ''
+    const contratTexto = gerarContratTexto(inst.contratilidade)
+    const contratPrefix = contratTexto ? `${contratTexto}. ` : ''
     if (padroesAtivos.length === 1) {
       const p = padroesAtivos[0]
-      texto = `${afilamento}${contrat.charAt(0).toUpperCase() + contrat.slice(1)} e realce tardio ${p.label} (${tipoStr}) nos ${listarSegmentos(p.segs)}`
+      texto = `${afilamento}${contratPrefix}Realce tardio ${p.label} (${tipoStr}) nos ${listarSegmentos(p.segs)}`
     } else {
       const partes = padroesAtivos.map(p => `${p.label} nos ${listarSegmentos(p.segs)}`)
       const last = partes.pop()!
-      texto = `${afilamento}${contrat.charAt(0).toUpperCase() + contrat.slice(1)} e realce tardio (${tipoStr}): ${partes.join(', ')}, e ${last}`
+      texto = `${afilamento}${contratPrefix}Realce tardio (${tipoStr}): ${partes.join(', ')}, e ${last}`
     }
   } else if (cfg.id === 'miocardite') {
-    // Miocardite: include intensidade
+    // Miocardite: include intensidade and per-segment contratilidade
     const intensidadeMap: Record<string, string> = { tenues: 'Tênues', discretos: 'Discretos', extensos: 'Extensos' }
     const intLabel = intensidadeMap[String(ex.intensidade)] || 'Discretos'
+    const contratTexto = gerarContratTexto(inst.contratilidade)
+    const contratSuffix = contratTexto ? `. ${contratTexto}` : ''
     if (padroesAtivos.length === 1) {
       const p = padroesAtivos[0]
-      texto = `${intLabel} focos de realce tardio ${p.label} (${tipoStr}) nos ${listarSegmentos(p.segs)}`
+      texto = `${intLabel} focos de realce tardio ${p.label} (${tipoStr}) nos ${listarSegmentos(p.segs)}${contratSuffix}`
     } else {
       const partes = padroesAtivos.map(p => `${p.label} nos ${listarSegmentos(p.segs)}`)
       const last = partes.pop()!
-      texto = `${intLabel} focos de realce tardio (${tipoStr}): ${partes.join(', ')}, e ${last}`
+      texto = `${intLabel} focos de realce tardio (${tipoStr}): ${partes.join(', ')}, e ${last}${contratSuffix}`
     }
   } else if (cfg.id === 'hcm') {
     // HCM: include tipo, espessura máxima, obstrução VSVE, SAM
@@ -628,10 +662,12 @@ const RADIAL_LINES = [
 // Cycle Bullseye — MRI-style (black bg, white enhancement)
 // ══════════════════════════════════════════════════════════
 
-function CycleBullseye({ segmentosPorPadrao, onCycleSeg, numCamadas = 3 }: {
+function CycleBullseye({ segmentosPorPadrao, onCycleSeg, numCamadas = 3, contratilidade = {}, activeBrush }: {
   segmentosPorPadrao: Record<string, Set<number>>
   onCycleSeg: (seg: number) => void
   numCamadas?: number
+  contratilidade?: Record<number, string>
+  activeBrush?: string | null
 }) {
   // Map each segment to its current pattern
   const segPattern = new Map<number, string>()
@@ -639,12 +675,16 @@ function CycleBullseye({ segmentosPorPadrao, onCycleSeg, numCamadas = 3 }: {
     for (const seg of segs) segPattern.set(seg, padrao)
   }
 
+  // Motion type color lookup
+  const motionColor = (key: string) => MOTION_TYPES.find(m => m.key === key)?.cor || '#888'
+
   const renderSegLayers = (segId: number, onClick: () => void) => {
     const ring = getSegRing(segId)
     const sublayers = splitRingN(ring.rO, ring.rI, numCamadas)
     const pat = segPattern.get(segId)
     const active = pat ? getActiveLayers(pat, numCamadas) : new Set<number>()
     const isApex = segId === 17
+    const brushCursor = activeBrush ? 'crosshair' : 'pointer'
 
     return sublayers.map((sl, idx) => {
       const on = active.has(idx)
@@ -653,20 +693,46 @@ function CycleBullseye({ segmentosPorPadrao, onCycleSeg, numCamadas = 3 }: {
       if (isApex && sl.rI < 0.1) {
         return <circle key={`${segId}-${idx}`} cx={BCX} cy={BCY} r={sl.rO}
           fill={fill} stroke="rgba(255,255,255,0.08)" strokeWidth={0.5}
-          onClick={onClick} style={{ cursor: 'pointer', transition: 'fill 0.15s' }} />
+          onClick={onClick} style={{ cursor: brushCursor, transition: 'fill 0.15s' }} />
       }
       if (isApex) {
         const d = `M${(BCX-sl.rO).toFixed(1)},${BCY} A${sl.rO.toFixed(1)},${sl.rO.toFixed(1)} 0 1 1 ${(BCX+sl.rO).toFixed(1)},${BCY} A${sl.rO.toFixed(1)},${sl.rO.toFixed(1)} 0 1 1 ${(BCX-sl.rO).toFixed(1)},${BCY} ` +
                   `M${(BCX-sl.rI).toFixed(1)},${BCY} A${sl.rI.toFixed(1)},${sl.rI.toFixed(1)} 0 1 0 ${(BCX+sl.rI).toFixed(1)},${BCY} A${sl.rI.toFixed(1)},${sl.rI.toFixed(1)} 0 1 0 ${(BCX-sl.rI).toFixed(1)},${BCY}`
         return <path key={`${segId}-${idx}`} d={d} fill={fill} fillRule="evenodd"
           stroke="rgba(255,255,255,0.08)" strokeWidth={0.5}
-          onClick={onClick} style={{ cursor: 'pointer', transition: 'fill 0.15s' }} />
+          onClick={onClick} style={{ cursor: brushCursor, transition: 'fill 0.15s' }} />
       }
       const ang = SEG_ANGLES[segId]
       return <path key={`${segId}-${idx}`} d={arcPath(BCX, BCY, sl.rO, sl.rI, ang.s, ang.e)}
         fill={fill} stroke="rgba(255,255,255,0.08)" strokeWidth={0.5}
-        onClick={onClick} style={{ cursor: 'pointer', transition: 'fill 0.15s' }} />
+        onClick={onClick} style={{ cursor: brushCursor, transition: 'fill 0.15s' }} />
     })
+  }
+
+  // Render motion indicator dot on segments
+  const renderMotionDots = () => {
+    const dots: React.ReactNode[] = []
+    for (const seg of SEG_LABELS) {
+      const mot = contratilidade[seg.id]
+      if (!mot) continue
+      const cor = motionColor(mot)
+      // Place dot slightly below the label
+      dots.push(
+        <circle key={`mot-${seg.id}`} cx={seg.lbl.x} cy={seg.lbl.y + 7}
+          r={3.5} fill={cor} stroke="#111" strokeWidth={0.8}
+          style={{ pointerEvents: 'none' }} />
+      )
+    }
+    // Apex (17)
+    if (contratilidade[17]) {
+      const cor = motionColor(contratilidade[17])
+      dots.push(
+        <circle key="mot-17" cx={BCX} cy={BCY + 7}
+          r={3.5} fill={cor} stroke="#111" strokeWidth={0.8}
+          style={{ pointerEvents: 'none' }} />
+      )
+    }
+    return dots
   }
 
   return (
@@ -722,6 +788,9 @@ function CycleBullseye({ segmentosPorPadrao, onCycleSeg, numCamadas = 3 }: {
           >17</text>
         )
       })()}
+
+      {/* Motion abnormality dots */}
+      {renderMotionDots()}
     </svg>
   )
 }
@@ -736,11 +805,29 @@ function DiseaseCard({ config, instance, onUpdate, onRemove }: {
   onUpdate: (updates: Partial<DiseaseInstance>) => void
   onRemove: () => void
 }) {
+  const [activeBrush, setActiveBrush] = useState<string | null>(null)
   const texto = gerarTextoInstancia(instance)
   const conclusao = gerarConclusaoInstancia(instance)
 
   const updateExtra = (key: string, value: string | boolean | number) => {
     onUpdate({ extras: { ...instance.extras, [key]: value } })
+  }
+
+  // Handle segment click: if brush active → paint motion, else → cycle enhancement
+  const handleSegClick = (seg: number) => {
+    if (activeBrush && config.temContratilidade) {
+      // Toggle motion on this segment
+      const updated = { ...instance.contratilidade }
+      if (updated[seg] === activeBrush) {
+        delete updated[seg]
+      } else {
+        updated[seg] = activeBrush
+      }
+      onUpdate({ contratilidade: updated })
+    } else {
+      // Cycle enhancement pattern
+      cycleSeg(seg)
+    }
   }
 
   // Cycle a segment through patterns: click advances to next pattern, last click clears
@@ -772,7 +859,7 @@ function DiseaseCard({ config, instance, onUpdate, onRemove }: {
   const clearAll = () => {
     const updated = { ...instance.segmentosPorPadrao }
     for (const k of Object.keys(updated)) updated[k] = new Set<number>()
-    onUpdate({ segmentosPorPadrao: updated })
+    onUpdate({ segmentosPorPadrao: updated, contratilidade: {} })
   }
 
   const selectAllMax = () => {
@@ -785,6 +872,7 @@ function DiseaseCard({ config, instance, onUpdate, onRemove }: {
   }
 
   const totalSegs = Object.values(instance.segmentosPorPadrao).reduce((sum, s) => sum + s.size, 0)
+  const motionCount = Object.keys(instance.contratilidade).length
 
   return (
     <div className="rounded-xl border overflow-hidden" style={{ borderColor: config.cor + '55', backgroundColor: 'var(--surface)' }}>
@@ -802,13 +890,57 @@ function DiseaseCard({ config, instance, onUpdate, onRemove }: {
         {config.usaBullseye && (
           <div className="pt-3">
             <label className="block text-xs font-semibold mb-2" style={{ color: 'var(--text3)' }}>
-              Segmentos ({totalSegs}/17) — clique para alternar padrão
+              Segmentos ({totalSegs}/17) — {activeBrush ? 'clique para pintar contratilidade' : 'clique para alternar padrão'}
             </label>
-            <CycleBullseye
-              segmentosPorPadrao={instance.segmentosPorPadrao}
-              onCycleSeg={cycleSeg}
-              numCamadas={config.numCamadas || 3}
-            />
+
+            {/* Layout: brush palette on the left, bullseye on the right */}
+            <div className="flex gap-3 items-start">
+              {/* Brush palette (only for diseases with contratilidade) */}
+              {config.temContratilidade && (
+                <div className="flex flex-col gap-1.5 pt-1 shrink-0">
+                  <span className="text-[9px] font-bold uppercase tracking-wider mb-0.5" style={{ color: 'var(--text3)' }}>
+                    Motilidade
+                  </span>
+                  {MOTION_TYPES.map(m => {
+                    const isActive = activeBrush === m.key
+                    const count = Object.values(instance.contratilidade).filter(v => v === m.key).length
+                    return (
+                      <button key={m.key} type="button"
+                        onClick={() => setActiveBrush(isActive ? null : m.key)}
+                        className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-[10px] font-semibold transition-all border text-left whitespace-nowrap"
+                        style={isActive
+                          ? { backgroundColor: m.cor + '22', borderColor: m.cor, color: m.cor, boxShadow: `0 0 6px ${m.cor}44` }
+                          : { backgroundColor: 'transparent', borderColor: 'var(--border)', color: 'var(--text3)' }
+                        }
+                      >
+                        <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: m.cor }} />
+                        {m.label}
+                        {count > 0 && <span className="ml-auto opacity-70">({count})</span>}
+                      </button>
+                    )
+                  })}
+                  {motionCount > 0 && (
+                    <button type="button"
+                      onClick={() => { setActiveBrush(null); onUpdate({ contratilidade: {} }) }}
+                      className="text-[9px] px-2 py-1 rounded border mt-1"
+                      style={{ borderColor: 'var(--border)', color: 'var(--text3)' }}
+                    >Limpar motilidade</button>
+                  )}
+                </div>
+              )}
+
+              {/* Bullseye */}
+              <div className="flex-1 min-w-0">
+                <CycleBullseye
+                  segmentosPorPadrao={instance.segmentosPorPadrao}
+                  onCycleSeg={handleSegClick}
+                  numCamadas={config.numCamadas || 3}
+                  contratilidade={instance.contratilidade}
+                  activeBrush={activeBrush}
+                />
+              </div>
+            </div>
+
             {/* Legend */}
             <div className="flex flex-wrap gap-1.5 mt-2 justify-center">
               {config.padroes.map(p => {
