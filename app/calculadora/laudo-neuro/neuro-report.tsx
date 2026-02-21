@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, useRef } from 'react'
 import CalculatorLayout, { Section } from '@/app/calculadora/components/calculator-layout'
 
 // ══════════════════════════════════════════════════════════
@@ -30,11 +30,7 @@ const emptySPNSide = (): SPNSide => ({
   compHiperdenso: false,
 })
 
-interface SPNSeio {
-  dir: SPNSide
-  esq: SPNSide
-}
-
+interface SPNSeio { dir: SPNSide; esq: SPNSide }
 const emptySPNSeio = (): SPNSeio => ({ dir: emptySPNSide(), esq: emptySPNSide() })
 
 interface VasoState {
@@ -157,17 +153,49 @@ const VASOS_INTRACRANIANOS = [
 ]
 
 // ══════════════════════════════════════════════════════════
-// Text Generation Functions
+// Text Generation: Técnica
 // ══════════════════════════════════════════════════════════
 
-function gerarTecnica(exame: Exame, contraste: Contraste): string {
+function gerarTecnica(exame: Exame, contraste: Contraste, temCranio: boolean, angioCervical: boolean, angioIntracraniana: boolean, angioVenosa: boolean): string {
+  const parts: string[] = []
+
   if (exame === 'tc') {
-    if (contraste === 'sem') return 'Aquisições helicoidais de imagens axiais com 0,5 mm de colimação, sem a utilização de contraste iodado. Realizadas reconstruções de imagens axiais com 2,0; 3,0 e 5,0 mm de espessura.'
-    if (contraste === 'ev') return 'Aquisições helicoidais de imagens axiais com 0,5 mm de colimação, antes e após a utilização de contraste iodado. Realizadas reconstruções de imagens axiais com 2,0; 3,0 e 5,0 mm de espessura.'
-    return 'Aquisições helicoidais de imagens axiais com 0,5 mm de colimação, antes, durante e após a injeção de contraste iodado. Realizadas reconstruções de imagens axiais com 2,0; 3,0 e 5,0 mm de espessura.'
+    // TC Crânio
+    if (temCranio) {
+      if (contraste === 'sem') parts.push('Aquisições helicoidais de imagens axiais com 0,5 mm de colimação, sem a utilização de contraste iodado. Realizadas reconstruções de imagens axiais com 2,0; 3,0 e 5,0 mm de espessura.')
+      else if (contraste === 'ev') parts.push('Aquisições helicoidais de imagens axiais com 0,5 mm de colimação, antes e após a utilização de contraste iodado. Realizadas reconstruções de imagens axiais com 2,0; 3,0 e 5,0 mm de espessura.')
+      else parts.push('Aquisições helicoidais de imagens axiais com 0,5 mm de colimação, antes, durante e após a injeção de contraste iodado. Realizadas reconstruções de imagens axiais com 2,0; 3,0 e 5,0 mm de espessura.')
+    }
+    // Angio arterial TC
+    if (angioCervical || angioIntracraniana) {
+      const reg = angioCervical && angioIntracraniana ? 'cervical e intracraniano' : angioCervical ? 'cervical' : 'intracraniano'
+      parts.push(`Adquirida sequência angiográfica com contraste iodado endovenoso para avaliação do território arterial ${reg}. Realizadas reformatações multiplanares e segundo intensidade máxima (MIP).`)
+    }
+    // Angio venosa TC
+    if (angioVenosa) {
+      parts.push('Adquirida sequência angiográfica venosa com contraste iodado endovenoso para avaliação dos seios venosos intracranianos. Realizadas reformatações multiplanares e segundo intensidade máxima (MIP).')
+    }
+  } else {
+    // RM
+    if (temCranio && (angioCervical || angioIntracraniana)) {
+      if (contraste === 'sem') {
+        parts.push('Aquisições multiplanares de imagens do encéfalo enfatizadas em T1, T2 com supressão do sinal do tecido adiposo e técnica FLAIR, suscetibilidade magnética e difusão. Adquiridas sequências angiográficas com técnica TOF e/ou contraste-fase sem a utilização do meio de contraste paramagnético endovenoso. Realizadas reformatações multiplanares segundo intensidade máxima.')
+      } else {
+        parts.push('Aquisições multiplanares de imagens do encéfalo enfatizadas em T1, T2 com supressão do sinal do tecido adiposo e técnica FLAIR, suscetibilidade magnética e difusão. Após a injeção EV do meio de contraste paramagnético, obtidas aquisições 3D e 2D em T1, com e sem supressão do sinal do tecido adiposo. Adquiridas sequências angiográficas com técnica TOF e/ou contraste-fase sem e GE-SPGR com a utilização do meio de contraste paramagnético endovenoso. Realizadas reformatações multiplanares segundo intensidade máxima.')
+      }
+    } else if (temCranio) {
+      if (contraste === 'sem') parts.push('Aquisições multiplanares de imagens do encéfalo enfatizadas em T1, T2 com supressão do sinal do tecido adiposo e técnica FLAIR, suscetibilidade magnética e difusão.')
+      else parts.push('Aquisições multiplanares de imagens do encéfalo enfatizadas em T1, T2 com supressão do sinal do tecido adiposo e técnica FLAIR, suscetibilidade magnética e difusão. Após a injeção EV do meio de contraste paramagnético, obtidas aquisições 3D e 2D em T1, com e sem supressão do sinal do tecido adiposo.')
+    } else if (angioCervical || angioIntracraniana) {
+      if (contraste === 'sem') parts.push('Adquiridas sequências angiográficas com técnica TOF sem a utilização de contraste endovenoso. Realizadas projeções multiplanares segundo intensidade máxima.')
+      else parts.push('Adquiridas sequências angiográficas com técnica TOF e/ou contraste-fase sem e GE-SPGR com a utilização do meio de contraste paramagnético endovenoso. Realizadas projeções multiplanares segundo intensidade máxima.')
+    }
+    if (angioVenosa) {
+      parts.push('Adquirida sequência angiográfica venosa por técnica de contraste de fase para avaliação dos seios venosos intracranianos.')
+    }
   }
-  // RM — genérico, pode customizar
-  return 'Imagens multiplanares ponderadas em T1, T2, FLAIR, difusão (DWI), SWI e T1 pós-contraste.'
+
+  return parts.join('\n')
 }
 
 // ══════════════════════════════════════════════════════════
@@ -175,9 +203,13 @@ function gerarTecnica(exame: Exame, contraste: Contraste): string {
 // ══════════════════════════════════════════════════════════
 
 export default function NeuroReport() {
-  // ── Exam type ──
+  // ── Exam type — now supports combined exams ──
   const [exame, setExame] = useState<Exame>('tc')
   const [contraste, setContraste] = useState<Contraste>('sem')
+  const [temCranio, setTemCranio] = useState(true)
+  const [angioCervical, setAngioCervical] = useState(false)
+  const [angioIntra, setAngioIntra] = useState(false)
+  const [angioVen, setAngioVen] = useState(false)
 
   // ── Artefatos ──
   const [artMovimento, setArtMovimento] = useState(false)
@@ -198,12 +230,10 @@ export default function NeuroReport() {
   const [demaisSulcosNorm, setDemaisSulcosNorm] = useState(false)
   const [restanteSVNorm, setRestanteSVNorm] = useState(false)
   const [cistoAracnoide, setCistoAracnoide] = useState(false)
-  const [liqNormal, setLiqNormal] = useState(false)
 
   // ── Substância branca ──
   const [sbMode, setSbMode] = useState<'pronto' | 'construir'>('pronto')
   const [sbPronto, setSbPronto] = useState('')
-  // Construir
   const [sbIntensidade, setSbIntensidade] = useState('')
   const [sbConfluentes, setSbConfluentes] = useState(false)
   const [sbDifusas, setSbDifusas] = useState(false)
@@ -278,7 +308,6 @@ export default function NeuroReport() {
   const [mastNivelLiq, setMastNivelLiq] = useState(false)
 
   // ── Ossos ──
-  const [ossosNormal, setOssosNormal] = useState(false)
   const [lesaoOssea, setLesaoOssea] = useState('')
 
   // ── Achados adicionais ──
@@ -286,15 +315,10 @@ export default function NeuroReport() {
   const [comentario1, setComentario1] = useState('')
   const [comentario2, setComentario2] = useState('')
   const [comentario3, setComentario3] = useState('')
-  const [restricaoDif, setRestricaoDif] = useState(false)
-  const [lesoesContrast, setLesoesContrast] = useState(false)
-  const [parenquimaNormal, setParenquimaNormal] = useState(false)
 
-  // ── Angio ──
-  const [angioMode, setAngioMode] = useState<'' | 'cervical' | 'intracraniana' | 'ambas'>('')
+  // ── Angio arterial ──
   const [angioGeral, setAngioGeral] = useState<'' | 'normal' | 'tortuoso' | 'leve_tort' | 'esp_par'>('')
   const [vasos, setVasos] = useState<VasoState[]>([])
-  // Variações da normalidade
   const [vertDom, setVertDom] = useState('')
   const [circFetal, setCircFetal] = useState('')
   const [a1Hipoplasia, setA1Hipoplasia] = useState('')
@@ -303,7 +327,6 @@ export default function NeuroReport() {
   const [azigus, setAzigus] = useState(false)
 
   // ── Angio venosa ──
-  const [angioVenosa, setAngioVenosa] = useState(false)
   const [venNormal, setVenNormal] = useState(false)
   const [venAssimTransvDir, setVenAssimTransvDir] = useState(false)
   const [venAssimTransvEsq, setVenAssimTransvEsq] = useState(false)
@@ -312,242 +335,285 @@ export default function NeuroReport() {
   const [venComentario, setVenComentario] = useState('')
 
   // ══════════════════════════════════════════════════════════
+  // Detect if user has made any cranio selections
+  // ══════════════════════════════════════════════════════════
+
+  const temAngioArterial = angioCervical || angioIntra
+
+  const hasCranioSelections = useMemo(() => {
+    return artMovimento || artSuscep || comentario1.trim() !== '' ||
+      sulcos !== '' || ventriculos !== '' || fossaPost || atrofia || hpn || assimVL !== '' ||
+      coaptDir || coaptEsq || cavoPelucido || cavoVerga || cavoVeu || demaisSulcosNorm || restanteSVNorm || cistoAracnoide ||
+      (sbMode === 'pronto' && sbPronto !== '') ||
+      (sbMode === 'construir' && (sbConfluentes || sbDifusas || sbCornAnt || sbAtrios || sbCentrosSO || sbEsparsas || sbCorRad || sbSubcort || sbMaisRaras || sbRegFP || sbSubins)) ||
+      epvaQtd !== '' || lacunas || cerebelo !== '' || hipocampos !== '' ||
+      comentario2.trim() !== '' || comentario3.trim() !== '' ||
+      calcPalidais || sbstParamag || hipFrontal || hipParietal ||
+      selaVazia || nervosOpt || seiosVenAfilados || cavosMeckel || iiiVentrFenda || hicBenigna ||
+      lesaoOssea.trim() !== '' || facectomia !== '' ||
+      !spnNormal && Object.values(spn).some(s => Object.values(s.dir).some(Boolean) || Object.values(s.esq).some(Boolean)) ||
+      mastoidesNormal || mastHipopneuBilat || mastHipopneuDir || mastHipopneuEsq || mastEburneo || mastApiceDir || mastApiceEsq || mastOblit || mastDelineamento
+  }, [artMovimento, artSuscep, comentario1, sulcos, ventriculos, fossaPost, atrofia, hpn, assimVL, coaptDir, coaptEsq, cavoPelucido, cavoVerga, cavoVeu, demaisSulcosNorm, restanteSVNorm, cistoAracnoide, sbMode, sbPronto, sbConfluentes, sbDifusas, sbCornAnt, sbAtrios, sbCentrosSO, sbEsparsas, sbCorRad, sbSubcort, sbMaisRaras, sbRegFP, sbSubins, epvaQtd, lacunas, cerebelo, hipocampos, comentario2, comentario3, calcPalidais, sbstParamag, hipFrontal, hipParietal, selaVazia, nervosOpt, seiosVenAfilados, cavosMeckel, iiiVentrFenda, hicBenigna, lesaoOssea, facectomia, spnNormal, spn, mastoidesNormal, mastHipopneuBilat, mastHipopneuDir, mastHipopneuEsq, mastEburneo, mastApiceDir, mastApiceEsq, mastOblit, mastDelineamento])
+
+  // ══════════════════════════════════════════════════════════
   // TEXT GENERATION
   // ══════════════════════════════════════════════════════════
 
   const titulo = useMemo(() => {
-    if (angioMode === 'cervical') return exame === 'tc' ? 'ANGIOTOMOGRAFIA DAS ARTÉRIAS CERVICAIS' : 'ANGIORESSONÂNCIA DAS ARTÉRIAS CERVICAIS'
-    if (angioMode === 'intracraniana') return exame === 'tc' ? 'ANGIOTOMOGRAFIA DAS ARTÉRIAS INTRACRANIANAS' : 'ANGIORESSONÂNCIA DAS ARTÉRIAS INTRACRANIANAS'
-    if (angioMode === 'ambas') return exame === 'tc' ? 'ANGIOTOMOGRAFIA DAS ARTÉRIAS CERVICAIS E INTRACRANIANAS' : 'ANGIORESSONÂNCIA DAS ARTÉRIAS CERVICAIS E INTRACRANIANAS'
-    if (angioVenosa) return exame === 'tc' ? 'ANGIOTOMOGRAFIA DOS SEIOS VENOSOS INTRACRANIANOS' : 'ANGIORESSONÂNCIA DOS SEIOS VENOSOS INTRACRANIANOS'
-    return exame === 'tc' ? 'TOMOGRAFIA COMPUTADORIZADA DA CABEÇA' : 'RESSONÂNCIA MAGNÉTICA DO ENCÉFALO'
-  }, [exame, angioMode, angioVenosa])
+    const parts: string[] = []
+    const prefix = exame === 'tc' ? 'TOMOGRAFIA COMPUTADORIZADA' : 'RESSONÂNCIA MAGNÉTICA'
+    const angioPrefix = exame === 'tc' ? 'ANGIOTOMOGRAFIA' : 'ANGIORESSONÂNCIA'
 
-  const textoTecnica = useMemo(() => gerarTecnica(exame, contraste), [exame, contraste])
+    if (temCranio) parts.push(`${prefix} ${exame === 'tc' ? 'DA CABEÇA' : 'DO ENCÉFALO'}`)
+
+    const angioRegs: string[] = []
+    if (angioCervical) angioRegs.push('CERVICAIS')
+    if (angioIntra) angioRegs.push('INTRACRANIANAS')
+    if (angioRegs.length > 0) parts.push(`${angioPrefix} DAS ARTÉRIAS ${angioRegs.join(' E ')}`)
+
+    if (angioVen) parts.push(`${angioPrefix} DOS SEIOS VENOSOS INTRACRANIANOS`)
+
+    if (parts.length === 0) return `${prefix} ${exame === 'tc' ? 'DA CABEÇA' : 'DO ENCÉFALO'}`
+    return parts.join('\n')
+  }, [exame, temCranio, angioCervical, angioIntra, angioVen])
+
+  const textoTecnica = useMemo(() => gerarTecnica(exame, contraste, temCranio, angioCervical, angioIntra, angioVen), [exame, contraste, temCranio, angioCervical, angioIntra, angioVen])
 
   // Build achados text
   const textoAchados = useMemo(() => {
     const parts: string[] = []
     const isRM = exame === 'rm'
     const hipoDensidade = isRM ? 'hipersinal em T2/FLAIR' : 'hipodensidades'
-    const atenuacao = isRM ? 'sinal' : 'atenuação'
 
-    // Artefatos
-    if (artMovimento) parts.push('Artefatos de movimento degradam algumas imagens, reduzindo a sensibilidade do estudo.')
-    if (artSuscep) parts.push('Material metálico nas arcadas dentárias determina artefatos de susceptibilidade magnética que degradam imagens em algumas aquisições, prejudicando sua interpretação.')
+    // ── CRÂNIO ──
+    if (temCranio) {
+      // If nothing is selected, generate normal mask
+      if (!hasCranioSelections) {
+        const normalParts: string[] = []
+        if (isRM) {
+          normalParts.push('Parênquima encefálico com posições, morfologia e características de sinal normais.')
+          normalParts.push('Sulcos corticais e fissuras encefálicas com amplitude normal.')
+          normalParts.push('Sistema ventricular com dimensões normais.')
+          normalParts.push('Não foram identificadas áreas de contrastação patológica ou de restrição à difusão.')
+          normalParts.push('Formações hipocampais simétricas, com características de sinal e dimensões conservadas.')
+          normalParts.push('Cavidades paranasais de conformação e aeração normais.')
+          normalParts.push('Mastoides aeradas.')
+          normalParts.push('Ossos da calota craniana sem evidências de anormalidades focais.')
+        } else {
+          normalParts.push('Parênquima encefálico com morfologia e densidades normais.')
+          normalParts.push('Sulcos corticais e fissuras encefálicas com amplitude normal.')
+          normalParts.push('Sistema ventricular com dimensões normais.')
+          normalParts.push('Formações hipocampais com atenuação e dimensões conservadas.')
+          normalParts.push('Cavidades paranasais de conformação e aeração normais.')
+          normalParts.push('Mastoides aeradas.')
+          normalParts.push('Ossos da calota craniana sem evidências de anormalidades focais.')
+        }
+        parts.push(normalParts.join('\n'))
+      } else {
+        // User has selections — build specific text
 
-    // Comentário livre 1
-    if (comentario1.trim()) parts.push(comentario1.trim())
+        // Artefatos
+        if (artMovimento) parts.push('Artefatos de movimento degradam algumas imagens, reduzindo a sensibilidade do estudo.')
+        if (artSuscep) parts.push('Material metálico nas arcadas dentárias determina artefatos de susceptibilidade magnética que degradam imagens em algumas aquisições, prejudicando sua interpretação.')
 
-    // Espaços liquóricos
-    const liqParts: string[] = []
-    if (liqNormal) {
-      liqParts.push('Sulcos corticais e fissuras encefálicas com amplitude normal.')
-      liqParts.push('Sistema ventricular com dimensões normais.')
-    } else {
-      if (sulcos === 'amplos_fp') liqParts.push('Sulcos corticais amplos nas convexidades frontoparietais.')
-      else if (sulcos === 'amplos_fissuras') liqParts.push('Sulcos corticais, fissuras inter-hemisférica e sylvianas amplos.')
+        // Comentário livre 1
+        if (comentario1.trim()) parts.push(comentario1.trim())
 
-      if (ventriculos === 'discreto') liqParts.push('Discreto aumento dos ventrículos laterais e III ventrículo.')
-      else if (ventriculos === 'dilatados') liqParts.push('Ventrículos laterais e III ventrículo dilatados.')
+        // Espaços liquóricos
+        const liqParts: string[] = []
+        if (sulcos === 'amplos_fp') liqParts.push('Sulcos corticais amplos nas convexidades frontoparietais.')
+        else if (sulcos === 'amplos_fissuras') liqParts.push('Sulcos corticais, fissuras inter-hemisférica e sylvianas amplos.')
 
-      if (fossaPost) liqParts.push('Cisternas da base e sulcos/fissuras cerebelares amplas.')
+        if (ventriculos === 'discreto') liqParts.push('Discreto aumento dos ventrículos laterais e III ventrículo.')
+        else if (ventriculos === 'dilatados') liqParts.push('Ventrículos laterais e III ventrículo dilatados.')
 
-      if (atrofia) {
-        liqParts.push('Alargamento dos sulcos corticais, fissuras inter-hemisférica e sylvianas, assim como aumento dos ventrículos laterais e III ventrículo. Cisternas da base e sulcos/fissuras cerebelares amplas.')
+        if (fossaPost) liqParts.push('Cisternas da base e sulcos/fissuras cerebelares amplas.')
+
+        if (atrofia) {
+          liqParts.push('Alargamento dos sulcos corticais, fissuras inter-hemisférica e sylvianas, assim como aumento dos ventrículos laterais e III ventrículo. Cisternas da base e sulcos/fissuras cerebelares amplas.')
+        }
+
+        if (hpn) {
+          liqParts.push('Menor amplitude dos sulcos corticais frontoparietais parassagitais e da fissura inter-hemisférica junto ao vértice. Alargamento dos demais sulcos corticais, fissuras sylvianas, assim como grande aumento dos ventrículos laterais e III ventrículo, com aspecto globoso. Cisternas da base amplas.')
+          liqParts.push('Sinais de redução volumétrica do encéfalo, notando-se certa desproporção entre as maiores dimensões ventriculares e a amplitude reduzida dos sulcos corticais no vértice, um achado inespecífico, mas que pode ser observado nos distúrbios da dinâmica do fluxo liquórico, em contexto clínico compatível.')
+        }
+
+        if (assimVL) liqParts.push(`Assimetria dos ventrículos laterais, maior à ${assimVL}.`)
+        if (coaptDir) liqParts.push('Coaptação focal do corno anterior do ventrículo lateral direito.')
+        if (coaptEsq) liqParts.push('Coaptação focal do corno anterior do ventrículo lateral esquerdo.')
+
+        const cavoParts: string[] = []
+        if (cavoPelucido) cavoParts.push('do septo pelúcido')
+        if (cavoVerga) cavoParts.push('de Verga')
+        if (cavoVeu) cavoParts.push('do véu interposto')
+        if (cavoParts.length > 0) {
+          const cavoStr = cavoParts.length === 1 ? `do cavo ${cavoParts[0]}` : `dos cavos ${cavoParts.join(' e ')}`
+          liqParts.push(`Persistência ${cavoStr} (variação da normalidade).`)
+        }
+
+        if (cistoAracnoide) liqParts.push('Alargamento do espaço liquórico retrovermiano, que pode estar relacionado a megacisterna magna ou cisto aracnoide. Achado fortuito, mais comumente sem significado clínico.')
+        if (demaisSulcosNorm) liqParts.push('Demais sulcos corticais e fissuras encefálicas com amplitude normal.')
+        if (restanteSVNorm) liqParts.push('Restante do sistema ventricular com dimensões normais.')
+        if (liqParts.length > 0) parts.push(liqParts.join('\n'))
+
+        // Substância branca
+        if (sbMode === 'pronto' && sbPronto) {
+          const sbMap: Record<string, string> = {
+            discretas_perivent: `Discretas ${hipoDensidade} na substância branca dos hemisférios cerebrais, ao redor dos cornos anteriores e átrios dos ventrículos laterais, esparsas nos centros semiovais, mais raras nas regiões frontoparietais subcorticais.`,
+            confluentes: `${hipoDensidade.charAt(0).toUpperCase() + hipoDensidade.slice(1)} na substância branca dos hemisférios cerebrais, confluentes ao redor dos cornos anteriores e átrios dos ventrículos laterais, esparsas nos centros semiovais, nas regiões frontoparietais subcorticais e subinsulares.`,
+            extensas: `Extensas ${hipoDensidade} na substância branca dos hemisférios cerebrais, confluentes ao redor dos cornos anteriores e átrios dos ventrículos laterais, difusas nos centros semiovais/ coroas radiadas, nas regiões frontoparietais subcorticais e subinsulares.`,
+            tenues: `Tênues ${hipoDensidade} na substância branca dos hemisférios cerebrais, ao redor dos cornos anteriores dos ventrículos laterais.`,
+            inespecificas: `${hipoDensidade.charAt(0).toUpperCase() + hipoDensidade.slice(1)} na substância branca dos hemisférios cerebrais, inespecíficas, frequentemente relacionadas a gliose/ rarefação de mielina.`,
+          }
+          if (sbMap[sbPronto]) parts.push(sbMap[sbPronto])
+        } else if (sbMode === 'construir') {
+          const locais: string[] = []
+          if (sbConfluentes) locais.push('confluentes')
+          if (sbCornAnt) locais.push('ao redor dos cornos anteriores')
+          if (sbAtrios) locais.push('e átrios dos ventrículos laterais')
+          if (sbCentrosSO) locais.push('nos centros semiovais')
+          if (sbDifusas) locais.push('difusas')
+          if (sbEsparsas) locais.push('esparsas')
+          if (sbCorRad) locais.push('nas coroas radiadas')
+          if (sbSubcort) locais.push('nas regiões subcorticais')
+          if (sbMaisRaras) locais.push('mais raras')
+          if (sbRegFP) locais.push('nas regiões frontoparietais subcorticais')
+          if (sbSubins) locais.push('nas regiões subinsulares')
+          if (locais.length > 0) {
+            const int = sbIntensidade === 'discretas' ? 'Discretas' : sbIntensidade === 'extensas' ? 'Extensas' : ''
+            const prefix = int ? `${int} ${hipoDensidade}` : `${hipoDensidade.charAt(0).toUpperCase() + hipoDensidade.slice(1)}`
+            parts.push(`${prefix} na substância branca dos hemisférios cerebrais, ${locais.join(', ')}.`)
+          }
+        }
+
+        // Comentário 2
+        if (comentario2.trim()) parts.push(comentario2.trim())
+
+        // EPVA / Lacunas
+        if (epvaQtd) {
+          const locais: string[] = []
+          if (epvaCentrosSO) locais.push('nos centros semiovais')
+          if (epvaNLent) locais.push('nos núcleos lentiformes')
+          if (epvaCauD) locais.push('na cabeça do núcleo caudado à direita')
+          if (epvaCauE) locais.push('na cabeça do núcleo caudado à esquerda')
+          if (epvaCapIntD) locais.push('na cápsula interna à direita')
+          if (epvaCapIntE) locais.push('na cápsula interna à esquerda')
+          if (epvaTalD) locais.push('no tálamo à direita')
+          if (epvaTalE) locais.push('no tálamo à esquerda')
+          if (epvaInfPut) locais.push('nas regiões infraputaminais')
+          if (epvaSubins) locais.push('nas regiões subinsulares')
+          if (epvaMesenc) locais.push('no mesencéfalo')
+          if (epvaPont) locais.push('na ponte')
+          if (locais.length > 0) {
+            const qtdLabel = epvaQtd === 'multiplos' ? 'Múltiplos focos' : epvaQtd === 'alguns' ? 'Alguns focos' : 'Focos'
+            const sinalLabel = isRM ? 'com sinal liquórico' : 'com densidade liquórica'
+            parts.push(`${qtdLabel} circunscritos ${sinalLabel} ${locais.join(', ')}, provavelmente representando espaços perivasculares.`)
+          }
+        }
+        if (lacunas) parts.push(isRM ? 'Lacunas com sinal liquórico no corpo do núcleo caudado.' : 'Lacunas com densidade liquórica.')
+
+        // Cerebelo
+        const cerebMap: Record<string, string> = {
+          seq_dir: 'Pequena sequela isquêmica ou fissura focalmente alargada no hemisfério cerebelar direito.',
+          seq_esq: 'Pequena sequela isquêmica ou fissura focalmente alargada no hemisfério cerebelar esquerdo.',
+          seq_bilat: 'Pequenas sequelas isquêmicas ou fissuras focalmente alargadas nos hemisférios cerebelares.',
+          faixa_dir: isRM ? 'Delgada faixa alongada com sinal liquórico na periferia do hemisfério cerebelar direito.' : 'Delgada faixa alongada na periferia do hemisfério cerebelar direito.',
+          faixa_esq: isRM ? 'Delgada faixa alongada com sinal liquórico na periferia do hemisfério cerebelar esquerdo.' : 'Delgada faixa alongada na periferia do hemisfério cerebelar esquerdo.',
+          faixas_bilat: isRM ? 'Delgadas faixas alongadas com sinal liquórico nos hemisférios cerebelares.' : 'Delgadas faixas alongadas nos hemisférios cerebelares.',
+        }
+        if (cerebelo && cerebMap[cerebelo]) parts.push(cerebMap[cerebelo])
+
+        // Hipocampos
+        const hipMap: Record<string, string> = {
+          normais_tc: 'Formações hipocampais com atenuação e dimensões conservadas.',
+          normais_rm: 'Formações hipocampais simétricas, com características de sinal e dimensões conservadas.',
+          red_prop_tc: 'Formações hipocampais com dimensões reduzidas, de maneira proporcional às demais estruturas encefálicas à análise não quantitativa.',
+          red_prop_rm: 'Formações hipocampais proporcionais às demais estruturas encefálicas à análise não quantitativa, com características de sinal conservadas.',
+          alt_bilat: `Formações hipocampais de dimensões reduzidas, de maneira desproporcional às demais estruturas encefálicas à análise não quantitativa${isRM ? ', e aumento de sinal em T2/FLAIR' : ''}.`,
+          alt_dir: `Formação hipocampal direita de dimensões reduzidas de maneira mais acentuada em relação às demais estruturas encefálicas à análise não quantitativa${isRM ? ', e aumento de sinal em T2/FLAIR' : ''}.`,
+          alt_esq: `Formação hipocampal esquerda de dimensões reduzidas de maneira mais acentuada em relação às demais estruturas encefálicas à análise não quantitativa${isRM ? ', e aumento de sinal em T2/FLAIR' : ''}.`,
+          ehm_bilat: 'Nota-se obliquidade/verticalização segmentar da junção cabeça/corpo das formações hipocampais, compatível com variante anatômica.',
+          ehm_dir: 'Nota-se obliquidade/verticalização segmentar da junção cabeça/corpo hipocampais à direita compatível com variante anatômica.',
+          ehm_esq: 'Nota-se obliquidade/verticalização segmentar da junção cabeça/corpo hipocampais à esquerda compatível com variante anatômica.',
+        }
+        const hipKey = hipocampos === 'normais' ? (isRM ? 'normais_rm' : 'normais_tc')
+          : hipocampos === 'red_prop' ? (isRM ? 'red_prop_rm' : 'red_prop_tc')
+          : hipocampos
+        if (hipKey && hipMap[hipKey]) parts.push(hipMap[hipKey])
+
+        // Comentário 3
+        if (comentario3.trim()) parts.push(comentario3.trim())
+
+        // Calcificações
+        if (calcPalidais) parts.push('Calcificações palidais, achado habitual nesta faixa etária.')
+        if (sbstParamag && isRM) parts.push('Hipossinal nos núcleos lentiformes em SWI, compatível com depósito de minerais, achado habitual nesta faixa etária.')
+
+        // Hiperostose
+        const hipLocs: string[] = []
+        if (hipFrontal) hipLocs.push('frontais')
+        if (hipParietal) hipLocs.push('parietais')
+        if (hipLocs.length > 0) {
+          parts.push(`Espessamento e lobulações na tábua interna da escama dos ossos ${hipLocs.join(' e ')}, compatíveis com hiperostose benigna.`)
+        }
+
+        // Sela túrcica
+        if (selaVazia) {
+          let selaStr = 'Insinuação liquórica na cavidade selar, caracterizando sela parcialmente vazia'
+          if (selaPacIdoso) selaStr += ', achado frequente na faixa etária'
+          selaStr += '.'
+          parts.push(selaStr)
+        }
+        if (nervosOpt) parts.push('Ingurgitamento das bainhas dos nervos ópticos.')
+        if (seiosVenAfilados) parts.push('Seios venosos intracranianos de aspecto afilado.')
+        if (cavosMeckel) parts.push('Cavos de Meckel amplos.')
+        if (iiiVentrFenda) parts.push('III ventrículo em fenda.')
+        if (hicBenigna) parts.push('Tais achados são inespecíficos, mas podem ser encontrados na hipertensão intracraniana benigna idiopática.')
+
+        // Ossos
+        if (lesaoOssea.trim()) parts.push(lesaoOssea.trim())
+
+        // SPN
+        const spnText = gerarTextoSPN(spn, spnNormal, exame)
+        if (spnText) parts.push(spnText)
+
+        // Mastoides
+        const mastText = gerarTextoMastoides()
+        if (mastText) parts.push(mastText)
+
+        // Facectomia
+        if (facectomia === 'bilateral') parts.push('Facectomias bilaterais.')
+        else if (facectomia === 'direita') parts.push('Facectomia à direita.')
+        else if (facectomia === 'esquerda') parts.push('Facectomia à esquerda.')
       }
-
-      if (hpn) {
-        liqParts.push('Menor amplitude dos sulcos corticais frontoparietais parassagitais e da fissura inter-hemisférica junto ao vértice. Alargamento dos demais sulcos corticais, fissuras sylvianas, assim como grande aumento dos ventrículos laterais e III ventrículo, com aspecto globoso. Cisternas da base amplas.')
-        liqParts.push('Sinais de redução volumétrica do encéfalo, notando-se certa desproporção entre as maiores dimensões ventriculares e a amplitude reduzida dos sulcos corticais no vértice, um achado inespecífico, mas que pode ser observado nos distúrbios da dinâmica do fluxo liquórico, em contexto clínico compatível.')
-      }
-
-      if (assimVL) liqParts.push(`Assimetria dos ventrículos laterais, maior à ${assimVL}.`)
-      if (coaptDir) liqParts.push('Coaptação focal do corno anterior do ventrículo lateral direito.')
-      if (coaptEsq) liqParts.push('Coaptação focal do corno anterior do ventrículo lateral esquerdo.')
-
-      const cavoParts: string[] = []
-      if (cavoPelucido) cavoParts.push('do septo pelúcido')
-      if (cavoVerga) cavoParts.push('de Verga')
-      if (cavoVeu) cavoParts.push('do véu interposto')
-      if (cavoParts.length > 0) {
-        const cavoStr = cavoParts.length === 1 ? `do cavo ${cavoParts[0]}` : `dos cavos ${cavoParts.join(' e ')}`
-        liqParts.push(`Persistência ${cavoStr} (variação da normalidade).`)
-      }
-
-      if (cistoAracnoide) liqParts.push('Alargamento do espaço liquórico retrovermiano, que pode estar relacionado a megacisterna magna ou cisto aracnoide. Achado fortuito, mais comumente sem significado clínico.')
-
-      if (demaisSulcosNorm) liqParts.push('Demais sulcos corticais e fissuras encefálicas com amplitude normal.')
-      if (restanteSVNorm) liqParts.push('Restante do sistema ventricular com dimensões normais.')
-    }
-    if (liqParts.length > 0) parts.push(liqParts.join(' '))
-
-    // Substância branca
-    if (sbMode === 'pronto' && sbPronto) {
-      const sbMap: Record<string, string> = {
-        discretas_perivent: `Discretas ${hipoDensidade} na substância branca dos hemisférios cerebrais, ao redor dos cornos anteriores e átrios dos ventrículos laterais, esparsas nos centros semiovais, mais raras nas regiões frontoparietais subcorticais.`,
-        confluentes: `${hipoDensidade.charAt(0).toUpperCase() + hipoDensidade.slice(1)} na substância branca dos hemisférios cerebrais, confluentes ao redor dos cornos anteriores e átrios dos ventrículos laterais, esparsas nos centros semiovais, nas regiões frontoparietais subcorticais e subinsulares.`,
-        extensas: `Extensas ${hipoDensidade} na substância branca dos hemisférios cerebrais, confluentes ao redor dos cornos anteriores e átrios dos ventrículos laterais, difusas nos centros semiovais/ coroas radiadas, nas regiões frontoparietais subcorticais e subinsulares.`,
-        tenues: `Tênues ${hipoDensidade} na substância branca dos hemisférios cerebrais, ao redor dos cornos anteriores dos ventrículos laterais.`,
-        inespecificas: `${hipoDensidade.charAt(0).toUpperCase() + hipoDensidade.slice(1)} na substância branca dos hemisférios cerebrais, inespecíficas, frequentemente relacionadas a gliose/ rarefação de mielina.`,
-      }
-      if (sbMap[sbPronto]) parts.push(sbMap[sbPronto])
-    } else if (sbMode === 'construir') {
-      // Construir frase manualmente
-      const locais: string[] = []
-      if (sbConfluentes) locais.push('confluentes')
-      if (sbCornAnt) locais.push('ao redor dos cornos anteriores')
-      if (sbAtrios) locais.push('e átrios dos ventrículos laterais')
-      if (sbCentrosSO) locais.push('nos centros semiovais')
-      if (sbDifusas) locais.push('difusas')
-      if (sbEsparsas) locais.push('esparsas')
-      if (sbCorRad) locais.push('nas coroas radiadas')
-      if (sbSubcort) locais.push('nas regiões subcorticais')
-      if (sbMaisRaras) locais.push('mais raras')
-      if (sbRegFP) locais.push('nas regiões frontoparietais subcorticais')
-      if (sbSubins) locais.push('nas regiões subinsulares')
-
-      if (locais.length > 0) {
-        const int = sbIntensidade === 'discretas' ? 'Discretas' : sbIntensidade === 'extensas' ? 'Extensas' : ''
-        const prefix = int ? `${int} ${hipoDensidade}` : `${hipoDensidade.charAt(0).toUpperCase() + hipoDensidade.slice(1)}`
-        parts.push(`${prefix} na substância branca dos hemisférios cerebrais, ${locais.join(', ')}.`)
-      }
     }
 
-    // Comentário 2
-    if (comentario2.trim()) parts.push(comentario2.trim())
-
-    // EPVA / Lacunas
-    if (epvaQtd) {
-      const locais: string[] = []
-      if (epvaCentrosSO) locais.push('nos centros semiovais')
-      if (epvaNLent) locais.push('nos núcleos lentiformes')
-      if (epvaCauD) locais.push('na cabeça do núcleo caudado à direita')
-      if (epvaCauE) locais.push('na cabeça do núcleo caudado à esquerda')
-      if (epvaCapIntD) locais.push('na cápsula interna à direita')
-      if (epvaCapIntE) locais.push('na cápsula interna à esquerda')
-      if (epvaTalD) locais.push('no tálamo à direita')
-      if (epvaTalE) locais.push('no tálamo à esquerda')
-      if (epvaInfPut) locais.push('nas regiões infraputaminais')
-      if (epvaSubins) locais.push('nas regiões subinsulares')
-      if (epvaMesenc) locais.push('no mesencéfalo')
-      if (epvaPont) locais.push('na ponte')
-
-      if (locais.length > 0) {
-        const qtdLabel = epvaQtd === 'multiplos' ? 'Múltiplos focos' : epvaQtd === 'alguns' ? 'Alguns focos' : 'Focos'
-        const sinalLabel = isRM ? 'com sinal liquórico' : 'com densidade liquórica'
-        parts.push(`${qtdLabel} circunscritos ${sinalLabel} ${locais.join(', ')}, provavelmente representando espaços perivasculares.`)
-      }
-    }
-    if (lacunas) parts.push(isRM ? 'Lacunas com sinal liquórico no corpo do núcleo caudado.' : 'Lacunas com densidade liquórica.')
-
-    // Cerebelo
-    const cerebMap: Record<string, string> = {
-      seq_dir: isRM ? 'Pequena sequela isquêmica ou fissura focalmente alargada no hemisfério cerebelar direito.' : 'Pequena sequela isquêmica ou fissura focalmente alargada no hemisfério cerebelar direito.',
-      seq_esq: 'Pequena sequela isquêmica ou fissura focalmente alargada no hemisfério cerebelar esquerdo.',
-      seq_multi_dir: 'Pequenas sequelas isquêmicas ou fissuras focalmente alargadas no hemisfério cerebelar direito.',
-      seq_multi_esq: 'Pequenas sequelas isquêmicas ou fissuras focalmente alargadas no hemisfério cerebelar esquerdo.',
-      seq_bilat: 'Pequenas sequelas isquêmicas ou fissuras focalmente alargadas nos hemisférios cerebelares.',
-      faixa_dir: isRM ? 'Delgada faixa alongada com sinal liquórico na periferia do hemisfério cerebelar direito.' : 'Delgada faixa alongada na periferia do hemisfério cerebelar direito.',
-      faixa_esq: isRM ? 'Delgada faixa alongada com sinal liquórico na periferia do hemisfério cerebelar esquerdo.' : 'Delgada faixa alongada na periferia do hemisfério cerebelar esquerdo.',
-      faixas_bilat: isRM ? 'Delgadas faixas alongadas com sinal liquórico nos hemisférios cerebelares.' : 'Delgadas faixas alongadas nos hemisférios cerebelares.',
-    }
-    if (cerebelo && cerebMap[cerebelo]) parts.push(cerebMap[cerebelo])
-
-    // Hipocampos
-    const hipMap: Record<string, string> = {
-      normais_tc: `Formações hipocampais com ${atenuacao} e dimensões conservadas.`,
-      normais_rm: 'Formações hipocampais simétricas, com características de sinal e dimensões conservadas.',
-      red_prop_tc: 'Formações hipocampais com dimensões reduzidas, de maneira proporcional às demais estruturas encefálicas à análise não quantitativa.',
-      red_prop_rm: 'Formações hipocampais proporcionais às demais estruturas encefálicas à análise não quantitativa, com características de sinal conservadas.',
-      alt_bilat: `Formações hipocampais de dimensões reduzidas, de maneira desproporcional às demais estruturas encefálicas à análise não quantitativa${isRM ? ', e aumento de sinal em T2/FLAIR' : ''}.`,
-      alt_dir: `Formação hipocampal direita de dimensões reduzidas de maneira mais acentuada em relação às demais estruturas encefálicas à análise não quantitativa${isRM ? ', e aumento de sinal em T2/FLAIR' : ''}.`,
-      alt_esq: `Formação hipocampal esquerda de dimensões reduzidas de maneira mais acentuada em relação às demais estruturas encefálicas à análise não quantitativa${isRM ? ', e aumento de sinal em T2/FLAIR' : ''}.`,
-      ehm_bilat: 'Nota-se obliquidade/verticalização segmentar da junção cabeça/corpo das formações hipocampais, compatível com variante anatômica.',
-      ehm_dir: 'Nota-se obliquidade/verticalização segmentar da junção cabeça/corpo hipocampais à direita compatível com variante anatômica.',
-      ehm_esq: 'Nota-se obliquidade/verticalização segmentar da junção cabeça/corpo hipocampais à esquerda compatível com variante anatômica.',
-    }
-    const hipKey = hipocampos === 'normais' ? (isRM ? 'normais_rm' : 'normais_tc')
-      : hipocampos === 'red_prop' ? (isRM ? 'red_prop_rm' : 'red_prop_tc')
-      : hipocampos
-    if (hipKey && hipMap[hipKey]) parts.push(hipMap[hipKey])
-
-    // Comentário 3
-    if (comentario3.trim()) parts.push(comentario3.trim())
-
-    // Restrição difusão / lesões contrastadas
-    if (restricaoDif) parts.push('Não se observam áreas de restrição à difusão.')
-    if (lesoesContrast) parts.push('Não se identificam lesões expansivas ou com realce anômalo.')
-
-    // Calcificações
-    if (calcPalidais) parts.push('Calcificações palidais, achado habitual nesta faixa etária.')
-    if (sbstParamag && isRM) parts.push('Hipossinal nos núcleos lentiformes em SWI, compatível com depósito de minerais, achado habitual nesta faixa etária.')
-
-    // Hiperostose
-    const hipLocs: string[] = []
-    if (hipFrontal) hipLocs.push('frontais')
-    if (hipParietal) hipLocs.push('parietais')
-    if (hipLocs.length > 0) {
-      parts.push(`Espessamento e lobulações na tábua interna da escama dos ossos ${hipLocs.join(' e ')}, compatíveis com hiperostose benigna.`)
+    // ── ANGIO ARTERIAL ──
+    if (temAngioArterial) {
+      const angioText = gerarTextoAngio()
+      if (angioText) parts.push(angioText)
     }
 
-    // Sela túrcica
-    if (selaVazia) {
-      let selaStr = 'Insinuação liquórica na cavidade selar, caracterizando sela parcialmente vazia'
-      if (selaPacIdoso) selaStr += ', achado frequente na faixa etária'
-      selaStr += '.'
-      parts.push(selaStr)
+    // ── ANGIO VENOSA ──
+    if (angioVen) {
+      const angVenText = gerarTextoAngioVenosa()
+      if (angVenText) parts.push(angVenText)
     }
-    if (nervosOpt) parts.push('Ingurgitamento das bainhas dos nervos ópticos.')
-    if (seiosVenAfilados) parts.push('Seios venosos intracranianos de aspecto afilado.')
-    if (cavosMeckel) parts.push('Cavos de Meckel amplos.')
-    if (iiiVentrFenda) parts.push('III ventrículo em fenda.')
-    if (hicBenigna) parts.push('Tais achados são inespecíficos, mas podem ser encontrados na hipertensão intracraniana benigna idiopática.')
 
-    // Ossos
-    if (ossosNormal) parts.push('Ossos da calota craniana sem evidências de anormalidades focais.')
-    if (lesaoOssea.trim()) parts.push(lesaoOssea.trim())
+    return parts.join('\n\n')
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [exame, temCranio, hasCranioSelections, artMovimento, artSuscep, comentario1, sulcos, ventriculos, fossaPost, atrofia, hpn, assimVL, coaptDir, coaptEsq, cavoPelucido, cavoVerga, cavoVeu, demaisSulcosNorm, restanteSVNorm, cistoAracnoide, sbMode, sbPronto, sbIntensidade, sbConfluentes, sbDifusas, sbCornAnt, sbAtrios, sbCentrosSO, sbEsparsas, sbCorRad, sbSubcort, sbMaisRaras, sbRegFP, sbSubins, comentario2, epvaQtd, epvaCentrosSO, epvaNLent, epvaCauD, epvaCauE, epvaCapIntD, epvaCapIntE, epvaTalD, epvaTalE, epvaInfPut, epvaSubins, epvaMesenc, epvaPont, lacunas, cerebelo, hipocampos, comentario3, calcPalidais, sbstParamag, hipFrontal, hipParietal, selaVazia, selaPacIdoso, nervosOpt, seiosVenAfilados, cavosMeckel, iiiVentrFenda, hicBenigna, lesaoOssea, spn, spnNormal, mastoidesNormal, mastHipopneuBilat, mastHipopneuDir, mastHipopneuEsq, mastEburneo, mastApiceDir, mastApiceEsq, mastOblit, mastDelineamento, mastDelineDir, mastDelineEsq, mastNivelLiq, facectomia, temAngioArterial, angioGeral, vasos, vertDom, circFetal, a1Hipoplasia, fenestBasilar, artTrigeminal, azigus, angioVen, venNormal, venAssimTransvDir, venAssimTransvEsq, venTrombose, venTromboseLocal, venComentario])
 
-    // SPN
-    const spnText = gerarTextoSPN(spn, spnNormal, exame)
-    if (spnText) parts.push(spnText)
-
-    // Mastoides
-    const mastText = gerarTextoMastoides()
-    if (mastText) parts.push(mastText)
-
-    // Facectomia
-    if (facectomia === 'bilateral') parts.push('Facectomias bilaterais.')
-    else if (facectomia === 'direita') parts.push('Facectomia à direita.')
-    else if (facectomia === 'esquerda') parts.push('Facectomia à esquerda.')
-
-    // Parênquima normal (catch-all)
-    if (parenquimaNormal) parts.push('Exame do encéfalo dentro dos limites da normalidade.')
-
-    // Angio geral
-    const angioText = gerarTextoAngio()
-    if (angioText) parts.push(angioText)
-
-    // Angio venosa
-    const angVenText = gerarTextoAngioVenosa()
-    if (angVenText) parts.push(angVenText)
-
-    return parts.join('\n')
-  }, [exame, artMovimento, artSuscep, comentario1, liqNormal, sulcos, ventriculos, fossaPost, atrofia, hpn, assimVL, coaptDir, coaptEsq, cavoPelucido, cavoVerga, cavoVeu, demaisSulcosNorm, restanteSVNorm, cistoAracnoide, sbMode, sbPronto, sbIntensidade, sbConfluentes, sbDifusas, sbCornAnt, sbAtrios, sbCentrosSO, sbEsparsas, sbCorRad, sbSubcort, sbMaisRaras, sbRegFP, sbSubins, comentario2, epvaQtd, epvaCentrosSO, epvaNLent, epvaCauD, epvaCauE, epvaCapIntD, epvaCapIntE, epvaTalD, epvaTalE, epvaInfPut, epvaSubins, epvaMesenc, epvaPont, lacunas, cerebelo, hipocampos, comentario3, restricaoDif, lesoesContrast, calcPalidais, sbstParamag, hipFrontal, hipParietal, selaVazia, selaPacIdoso, nervosOpt, seiosVenAfilados, cavosMeckel, iiiVentrFenda, hicBenigna, ossosNormal, lesaoOssea, spn, spnNormal, mastoidesNormal, mastHipopneuBilat, mastHipopneuDir, mastHipopneuEsq, mastEburneo, mastApiceDir, mastApiceEsq, mastOblit, mastDelineamento, mastDelineDir, mastDelineEsq, mastNivelLiq, facectomia, parenquimaNormal, angioMode, angioGeral, vasos, vertDom, circFetal, a1Hipoplasia, fenestBasilar, artTrigeminal, azigus, angioVenosa, venNormal, venAssimTransvDir, venAssimTransvEsq, venTrombose, venTromboseLocal, venComentario])
-
-  // SPN text generation
-  function gerarTextoSPN(spn: Record<string, SPNSeio>, normal: boolean, _exame: Exame): string {
+  // ── SPN text generation ──
+  function gerarTextoSPN(spnData: Record<string, SPNSeio>, normal: boolean, _exame: Exame): string {
     if (normal) return 'Cavidades paranasais de conformação e aeração normais.'
 
     const achados: string[] = []
-
-    // Check each finding type across all sinuses
     type Finding = { seio: typeof SEIOS[number]; lados: ('dir' | 'esq')[] }
 
     const checkFinding = (key: keyof SPNSide): Finding[] => {
       const found: Finding[] = []
       for (const seio of SEIOS) {
-        const s = spn[seio.id as keyof typeof spn]
+        const s = spnData[seio.id as keyof typeof spnData]
         if (!s) continue
         const lados: ('dir' | 'esq')[] = []
         if (s.dir[key]) lados.push('dir')
@@ -557,7 +623,6 @@ export default function NeuroReport() {
       return found
     }
 
-    // Espessamento mucoso
     const esp = checkFinding('espessamento')
     const espDisc = checkFinding('espessamentoDiscreto')
     const allEsp = [...esp, ...espDisc]
@@ -572,7 +637,6 @@ export default function NeuroReport() {
       achados.push(`${prefix} ${locStrs.join(', ')}.`)
     }
 
-    // Contornos lobulados
     const lob = checkFinding('contornosLob')
     if (lob.length > 0) {
       const locStrs = lob.map(f => {
@@ -582,7 +646,6 @@ export default function NeuroReport() {
       achados.push(`Aspecto por vezes lobulado deste espessamento mucoso ${locStrs.join(', ')}, podendo corresponder a cistos de retenção/pólipos.`)
     }
 
-    // Paredes espessadas
     const par = checkFinding('paredesEsp')
     if (par.length > 0) {
       const locStrs = par.map(f => {
@@ -592,28 +655,25 @@ export default function NeuroReport() {
       achados.push(`Espessamento e esclerose das paredes ósseas ${locStrs.join(', ')} (osteíte reacional), sugerindo cronicidade do processo inflamatório.`)
     }
 
-    // Calcificações mucosas
     const calc = checkFinding('calcMucosas')
     if (calc.length > 0) {
       const locStrs = calc.map(f => {
         const bilateral = f.lados.length === 2
-        const prep = bilateral ? `n${f.seio.labelArtigoSg.substring(1)}` : `n${f.seio.labelArtigoSg.substring(1)}${f.lados[0] === 'dir' ? ' à direita' : ' à esquerda'}`
-        return prep
+        return bilateral ? `n${f.seio.labelArtigoSg.substring(1)}` : `n${f.seio.labelArtigoSg.substring(1)}${f.lados[0] === 'dir' ? ' à direita' : ' à esquerda'}`
       })
       achados.push(`Presença de calcificações mucosas/submucosas ${locStrs.join(', ')}, sugerindo cronicidade do processo inflamatório.`)
     }
 
-    // Secreção
     const secPeq = checkFinding('secrecaoPeqQtd')
-    const secOblit = checkFinding('secrecaoOblit')
     if (secPeq.length > 0) {
       const locStrs = secPeq.map(f => {
         const bilateral = f.lados.length === 2
-        const prep = bilateral ? `n${f.seio.labelArtigoSg.substring(1)}` : `n${f.seio.labelArtigoSg.substring(1)}${f.lados[0] === 'dir' ? ' à direita' : ' à esquerda'}`
-        return prep
+        return bilateral ? `n${f.seio.labelArtigoSg.substring(1)}` : `n${f.seio.labelArtigoSg.substring(1)}${f.lados[0] === 'dir' ? ' à direita' : ' à esquerda'}`
       })
       achados.push(`Presença de secreção em pequena quantidade ${locStrs.join(', ')}.`)
     }
+
+    const secOblit = checkFinding('secrecaoOblit')
     if (secOblit.length > 0) {
       const locStrs = secOblit.map(f => {
         const bilateral = f.lados.length === 2
@@ -622,35 +682,29 @@ export default function NeuroReport() {
       achados.push(`Presença de secreção obliterando ${locStrs.join(', ')}.`)
     }
 
-    // Bolhas aéreas
     const bolhas = checkFinding('bolhasAereas')
     if (bolhas.length > 0) {
       const locStrs = bolhas.map(f => {
         const bilateral = f.lados.length === 2
-        const prep = bilateral ? `n${f.seio.labelArtigoSg.substring(1)}` : `n${f.seio.labelArtigoSg.substring(1)}${f.lados[0] === 'dir' ? ' à direita' : ' à esquerda'}`
-        return prep
+        return bilateral ? `n${f.seio.labelArtigoSg.substring(1)}` : `n${f.seio.labelArtigoSg.substring(1)}${f.lados[0] === 'dir' ? ' à direita' : ' à esquerda'}`
       })
       achados.push(`Bolhas aéreas de permeio ${locStrs.join(', ')}.`)
     }
 
-    // Nível líquido
     const nivel = checkFinding('nivelLiquido')
     if (nivel.length > 0) {
       const locStrs = nivel.map(f => {
         const bilateral = f.lados.length === 2
-        const prep = bilateral ? `n${f.seio.labelArtigoSg.substring(1)}` : `n${f.seio.labelArtigoSg.substring(1)}${f.lados[0] === 'dir' ? ' à direita' : ' à esquerda'}`
-        return prep
+        return bilateral ? `n${f.seio.labelArtigoSg.substring(1)}` : `n${f.seio.labelArtigoSg.substring(1)}${f.lados[0] === 'dir' ? ' à direita' : ' à esquerda'}`
       })
       achados.push(`Nível líquido ${locStrs.join(', ')} sugerindo quadro agudo/agudizado.`)
     }
 
-    // Componente hiperdenso
     const hiper = checkFinding('compHiperdenso')
     if (hiper.length > 0) {
       const locStrs = hiper.map(f => {
         const bilateral = f.lados.length === 2
-        const prep = bilateral ? `n${f.seio.labelArtigoSg.substring(1)}` : `n${f.seio.labelArtigoSg.substring(1)}${f.lados[0] === 'dir' ? ' à direita' : ' à esquerda'}`
-        return prep
+        return bilateral ? `n${f.seio.labelArtigoSg.substring(1)}` : `n${f.seio.labelArtigoSg.substring(1)}${f.lados[0] === 'dir' ? ' à direita' : ' à esquerda'}`
       })
       achados.push(`Componentes hiperdensos de permeio ${locStrs.join(', ')} que pode estar relacionado a conteúdo hiperprotêico, hemático ou fúngico.`)
     }
@@ -658,7 +712,7 @@ export default function NeuroReport() {
     return achados.join(' ')
   }
 
-  // Mastoides text
+  // ── Mastoides text ──
   function gerarTextoMastoides(): string {
     if (mastoidesNormal) return 'Mastoides aeradas.'
     const p: string[] = []
@@ -673,7 +727,6 @@ export default function NeuroReport() {
     if (mastApiceDir && mastApiceEsq) p.push('Ápices das mastoides hipopneumatizados.')
     else if (mastApiceDir) p.push('Ápice da mastoide à direita hipopneumatizado.')
     else if (mastApiceEsq) p.push('Ápice da mastoide à esquerda hipopneumatizado.')
-
     if (mastOblit) p.push('Obliteração de algumas células das mastoides por material com atenuação de partes moles.')
     if (mastDelineamento) {
       const lado = mastDelineDir && mastDelineEsq ? 'das mastoides' : mastDelineDir ? 'da mastoide direita' : 'da mastoide esquerda'
@@ -684,16 +737,14 @@ export default function NeuroReport() {
     return p.join(' ')
   }
 
-  // Angio text
+  // ── Angio arterial text ──
   function gerarTextoAngio(): string {
-    if (!angioMode) return ''
+    if (!temAngioArterial) return ''
     const p: string[] = []
 
-    // Geral
     if (angioGeral === 'normal') {
-      if (angioMode === 'cervical') p.push('Colunas de fluxo representantes dos grandes troncos arteriais cervicais e seus principais ramos de trajeto e calibre normais.')
-      else if (angioMode === 'intracraniana') p.push('Colunas de fluxo representantes dos grandes troncos arteriais intracranianos e seus principais ramos de trajeto e calibre normais.')
-      else p.push('Colunas de fluxo representantes dos grandes troncos arteriais cervicais, intracranianos e seus principais ramos de trajeto e calibre normais.')
+      const reg = angioCervical && angioIntra ? 'cervicais, intracranianos e seus principais ramos' : angioCervical ? 'cervicais e seus principais ramos' : 'intracranianos e seus principais ramos'
+      p.push(`Colunas de fluxo representantes dos grandes troncos arteriais ${reg} de trajeto e calibre normais.`)
     } else if (angioGeral === 'leve_tort') {
       p.push('Grandes troncos arteriais cervicais e seus principais ramos de trajeto levemente alongado e tortuoso.')
     } else if (angioGeral === 'tortuoso') {
@@ -702,25 +753,18 @@ export default function NeuroReport() {
       p.push('Grandes troncos arteriais cervicais e seus principais ramos de trajeto alongado e tortuoso, apresentando espessamento parietal difuso.')
     }
 
-    // Per-vaso
     for (const v of vasos) {
       if (!v.vaso) continue
       const vasoNome = v.vaso + (v.lado ? ` ${v.lado}` : '')
       const vp: string[] = []
-
-      // Trajeto
       if (v.trajeto === 'normal') vp.push('De trajeto e calibre normais')
       else if (v.trajeto === 'discr_along') vp.push('Discretamente alongada e tortuosa')
       else if (v.trajeto === 'along_tort') vp.push('Alongada, tortuosa e irregular')
       if (v.acotovelamento) vp.push('com presença de acotovelamento vascular')
       if (v.alcaVasc) vp.push('com presença de alças vasculares redundantes')
-
-      // Parede
       if (v.parede === 'esp_difuso') vp.push('Espessamento parietal difuso')
       else if (v.parede === 'placas_irreg') vp.push('com presença de discretas irregularidades parietais por presumíveis placas calcificadas')
       else if (v.parede === 'placas_mult') vp.push('com presença de múltiplas irregularidades parietais por presumíveis placas parietais calcificadas')
-
-      // Placa 1
       if (v.placa1Tipo) {
         const tipoMap: Record<string, string> = { calcificada: 'calcificada', parc_calc: 'parcialmente calcificada', nao_calc: 'não calcificada (placa "mole")' }
         const segMap: Record<string, string> = { inicial: 'no segmento inicial', medio: 'no segmento médio', distal: 'no segmento distal' }
@@ -731,8 +775,6 @@ export default function NeuroReport() {
         if (v.placa1Estenose) plStr += `, ${estMap[v.placa1Estenose] || ''}`
         vp.push(plStr)
       }
-
-      // Placa 2
       if (v.placa2Tipo) {
         const tipoMap: Record<string, string> = { calcificada: 'calcificada', parc_calc: 'parcialmente calcificada', nao_calc: 'não calcificada' }
         const segMap: Record<string, string> = { inicial: 'no segmento inicial', medio: 'no segmento médio', distal: 'no segmento distal' }
@@ -743,8 +785,6 @@ export default function NeuroReport() {
         if (v.placa2Estenose) plStr += `, ${estMap[v.placa2Estenose] || ''}`
         vp.push(plStr)
       }
-
-      // Aneurisma
       if (v.aneurisma) {
         const segMap: Record<string, string> = { inicial: 'do segmento inicial', medio: 'do segmento médio', distal: 'do segmento distal' }
         let anStr = `Dilatação aneurismática ${v.aneurisma === 'sacular' ? 'sacular' : 'fusiforme'}`
@@ -755,8 +795,6 @@ export default function NeuroReport() {
         vp.push(anStr)
       }
       if (v.dilatInfund) vp.push('Pode representar dilatação infundibular ou pequeno aneurisma')
-
-      // Dissecção
       if (v.disseccao) {
         const segMap: Record<string, string> = { inicial: 'no segmento inicial', medio: 'no segmento médio', distal: 'no segmento distal' }
         const estMap: Record<string, string> = { leve: 'leve', moderada: 'moderada', acentuada: 'acentuada' }
@@ -772,21 +810,13 @@ export default function NeuroReport() {
           vp.push(dStr + '. Tal aspecto é suspeito para dissecção vascular')
         }
       }
-
-      // Obstrução
       if (v.obstrucao) {
         const segMap: Record<string, string> = { origem: 'desde sua origem', medio: 'desde seu segmento médio', distal: 'desde seu segmento distal' }
         vp.push(`Sinais de obstrução do fluxo arterial ${segMap[v.obstrucaoSeg] || ''}`)
       }
-
-      // Displasia
       if (v.displasia) vp.push('Irregularidades sucessivas nas paredes vasculares, com áreas de estenose e dilatação alternantes, por vezes em aspecto de "colar de contas", achado que pode representar displasia fibromuscular')
-
       if (v.comentario.trim()) vp.push(v.comentario.trim())
-
-      if (vp.length > 0) {
-        p.push(`${vasoNome}: ${vp.join('. ')}.`)
-      }
+      if (vp.length > 0) p.push(`${vasoNome}: ${vp.join('. ')}.`)
     }
 
     // Variações da normalidade
@@ -801,16 +831,14 @@ export default function NeuroReport() {
     if (fenestBasilar) varParts.push('Fenestração da artéria basilar')
     if (artTrigeminal) varParts.push('Artéria trigeminal persistente')
     if (azigus) varParts.push('Artéria cerebral anterior ázigos')
-    if (varParts.length > 0) {
-      p.push(varParts.join('. ') + ' (variação da normalidade).')
-    }
+    if (varParts.length > 0) p.push(varParts.join('. ') + ' (variação da normalidade).')
 
     return p.join('\n')
   }
 
-  // Angio venosa text
+  // ── Angio venosa text ──
   function gerarTextoAngioVenosa(): string {
-    if (!angioVenosa) return ''
+    if (!angioVen) return ''
     const p: string[] = []
     if (venNormal) p.push('Seios venosos intracranianos pérvios, de calibre e sinal normais.')
     if (venAssimTransvDir) p.push('Assimetria dos seios transversos e sigmoides, com dominância à direita.')
@@ -821,16 +849,39 @@ export default function NeuroReport() {
       p.push(s + '.')
     }
     if (venComentario.trim()) p.push(venComentario.trim())
-    return p.join(' ')
+    return p.join('\n')
   }
 
   // ══════════════════════════════════════════════════════════
-  // Copy function
+  // Copy functions — rich HTML for Word/Docs compatibility
   // ══════════════════════════════════════════════════════════
 
+  const laudoRef = useRef<HTMLDivElement>(null)
   const [copied, setCopied] = useState('')
-  const copyText = useCallback((text: string, label: string) => {
-    navigator.clipboard.writeText(text)
+
+  const copyRich = useCallback(async (text: string, label: string) => {
+    // Build styled HTML for Word/Google Docs
+    const lines = text.split('\n')
+    const htmlLines = lines.map(l => {
+      if (!l.trim()) return '<br>'
+      // Detect section headers (all caps lines)
+      if (l === l.toUpperCase() && l.length > 3 && !l.startsWith('-')) {
+        return `<p style="margin:0 0 4pt 0;"><b>${l}</b></p>`
+      }
+      return `<p style="margin:0 0 2pt 0;">${l}</p>`
+    }).join('')
+    const styledHtml = `<div style="font-family:'Calibri','Arial',sans-serif;font-size:11pt;line-height:1.4;color:#000;">${htmlLines}</div>`
+
+    try {
+      await navigator.clipboard.write([
+        new ClipboardItem({
+          'text/html': new Blob([styledHtml], { type: 'text/html' }),
+          'text/plain': new Blob([text], { type: 'text/plain' }),
+        })
+      ])
+    } catch {
+      await navigator.clipboard.writeText(text)
+    }
     setCopied(label)
     setTimeout(() => setCopied(''), 2000)
   }, [])
@@ -838,14 +889,13 @@ export default function NeuroReport() {
   const fullText = `${titulo}\n\nTÉCNICA:\n${textoTecnica}\n\nACHADOS:\n${textoAchados}`
 
   // ══════════════════════════════════════════════════════════
-  // Vaso management
+  // Vaso & SPN management
   // ══════════════════════════════════════════════════════════
 
   const addVaso = () => setVasos(p => [...p, emptyVaso()])
   const removeVaso = (i: number) => setVasos(p => p.filter((_, j) => j !== i))
   const updateVaso = (i: number, updates: Partial<VasoState>) => setVasos(p => p.map((v, j) => j === i ? { ...v, ...updates } : v))
 
-  // SPN updater
   const updateSPN = (seioId: string, lado: 'dir' | 'esq', key: keyof SPNSide, val: boolean) => {
     setSpn(prev => ({
       ...prev,
@@ -856,48 +906,67 @@ export default function NeuroReport() {
     }))
   }
 
+  // Available vasos based on exam type
+  const vasosDisponiveis = useMemo(() => {
+    if (angioCervical && angioIntra) return [...VASOS_CERVICAIS, ...VASOS_INTRACRANIANOS]
+    if (angioCervical) return VASOS_CERVICAIS
+    return VASOS_INTRACRANIANOS
+  }, [angioCervical, angioIntra])
+
   // ══════════════════════════════════════════════════════════
   // RENDER
   // ══════════════════════════════════════════════════════════
 
   return (
     <CalculatorLayout title="Gerador de Laudo Neuro" subtitle="TC e RM de crânio, angio cervical/intracraniana/venosa">
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr,380px] gap-4 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr,440px] gap-6 items-start">
         {/* LEFT — Input sections */}
         <div className="space-y-2">
 
-          {/* Exame e Técnica */}
+          {/* Exame e Técnica — now with checkboxes for combined exams */}
           <Section title="Exame e Técnica" defaultOpen>
             <div className="space-y-3">
               <Radio value={exame} onChange={setExame} label="Modalidade"
                 options={[{ v: 'tc', l: 'TC' }, { v: 'rm', l: 'RM' }]} />
               <Radio value={contraste} onChange={setContraste} label="Contraste"
                 options={[{ v: 'sem', l: 'Sem contraste' }, { v: 'ev', l: 'EV' }, { v: 'dinamico', l: 'Dinâmico' }]} />
-              <Radio value={angioMode} onChange={setAngioMode} label="Angio"
-                options={[{ v: '' as any, l: 'Sem angio' }, { v: 'cervical', l: 'Cervical' }, { v: 'intracraniana', l: 'Intracraniana' }, { v: 'ambas', l: 'Ambas' }]} />
-              <Chk checked={angioVenosa} onChange={setAngioVenosa} label="Angio venosa" />
+              <div>
+                <span className="block text-[11px] font-semibold mb-1" style={{ color: 'var(--text3)' }}>Componentes do exame</span>
+                <div className="flex flex-wrap gap-x-4 gap-y-1">
+                  <Chk checked={temCranio} onChange={setTemCranio} label="Crânio" />
+                  <Chk checked={angioCervical} onChange={setAngioCervical} label="Angio cervical" />
+                  <Chk checked={angioIntra} onChange={setAngioIntra} label="Angio intracraniana" />
+                  <Chk checked={angioVen} onChange={setAngioVen} label="Angio venosa" />
+                </div>
+              </div>
+              <div className="rounded-lg p-2 text-[10px] leading-tight" style={{ backgroundColor: 'var(--surface2)', color: 'var(--text3)' }}>
+                Marque todos os componentes do exame. Ex: TC Crânio + Angio cervical + Angio intracraniana + Angio venosa.
+              </div>
             </div>
           </Section>
 
-          {/* Artefatos */}
-          <Section title="Artefatos" defaultOpen={false}>
-            <Chk checked={artMovimento} onChange={setArtMovimento} label="Artefatos de movimento" />
-            <Chk checked={artSuscep} onChange={setArtSuscep} label="Susceptibilidade magnética (arcadas dentárias)" />
-            <div className="mt-2">
-              <span className="text-[10px] font-semibold" style={{ color: 'var(--text3)' }}>Comentário:</span>
-              <Txt value={comentario1} onChange={setComentario1} placeholder="Texto livre..." />
-            </div>
-          </Section>
+          {/* ── CRÂNIO SECTIONS ── */}
+          {temCranio && <>
+            {/* Artefatos */}
+            <Section title="Artefatos" defaultOpen={false}>
+              <Chk checked={artMovimento} onChange={setArtMovimento} label="Artefatos de movimento" />
+              <Chk checked={artSuscep} onChange={setArtSuscep} label="Susceptibilidade magnética (arcadas dentárias)" />
+              <div className="mt-2">
+                <span className="text-[10px] font-semibold" style={{ color: 'var(--text3)' }}>Comentário:</span>
+                <Txt value={comentario1} onChange={setComentario1} placeholder="Texto livre..." />
+              </div>
+            </Section>
 
-          {/* Espaços liquóricos */}
-          <Section title="Espaços Liquóricos" defaultOpen={false}>
-            <div className="space-y-2">
-              <Chk checked={liqNormal} onChange={v => { setLiqNormal(v); if (v) { setSulcos(''); setVentriculos(''); setFossaPost(false); setAtrofia(false); setHpn(false) } }} label="Normal (sulcos e ventrículos normais)" />
-              {!liqNormal && <>
+            {/* Espaços liquóricos */}
+            <Section title="Espaços Liquóricos" defaultOpen={false}>
+              <div className="space-y-2">
+                <div className="rounded-lg p-2 text-[10px]" style={{ backgroundColor: 'var(--accent)0D', color: 'var(--accent)' }}>
+                  Se nada for marcado, o laudo virá com máscara normal.
+                </div>
                 <Radio value={sulcos} onChange={setSulcos} label="Sulcos"
-                  options={[{ v: '' as any, l: 'Não mencionar' }, { v: 'amplos_fp', l: 'Amplos FP' }, { v: 'amplos_fissuras', l: 'Amplos + fissuras' }]} />
+                  options={[{ v: '' as any, l: 'Normal' }, { v: 'amplos_fp', l: 'Amplos FP' }, { v: 'amplos_fissuras', l: 'Amplos + fissuras' }]} />
                 <Radio value={ventriculos} onChange={setVentriculos} label="Ventrículos"
-                  options={[{ v: '' as any, l: 'Não mencionar' }, { v: 'discreto', l: 'Discreto aumento' }, { v: 'dilatados', l: 'Dilatados' }]} />
+                  options={[{ v: '' as any, l: 'Normal' }, { v: 'discreto', l: 'Discreto aumento' }, { v: 'dilatados', l: 'Dilatados' }]} />
                 <Chk checked={fossaPost} onChange={setFossaPost} label="Cisternas da base e sulcos cerebelares amplos" />
                 <Chk checked={atrofia} onChange={setAtrofia} label="Sinais de redução volumétrica (atrofia)" />
                 <Chk checked={hpn} onChange={setHpn} label="HPN (hidrocefalia pressão normal)" />
@@ -915,218 +984,210 @@ export default function NeuroReport() {
                 <Chk checked={cistoAracnoide} onChange={setCistoAracnoide} label="Megacisterna magna / cisto aracnoide" />
                 <Chk checked={demaisSulcosNorm} onChange={setDemaisSulcosNorm} label="Demais sulcos normais" />
                 <Chk checked={restanteSVNorm} onChange={setRestanteSVNorm} label="Restante do SV normal" />
-              </>}
-            </div>
-          </Section>
+              </div>
+            </Section>
 
-          {/* Substância branca */}
-          <Section title="Substância Branca" defaultOpen={false}>
-            <div className="space-y-2">
-              <Radio value={sbMode} onChange={setSbMode} label="Modo"
-                options={[{ v: 'pronto', l: 'Frases prontas' }, { v: 'construir', l: 'Construir frase' }]} />
-
-              {sbMode === 'pronto' && (
-                <div className="space-y-1">
-                  {[
-                    { v: 'tenues', l: 'Tênues (cornos anteriores)' },
-                    { v: 'discretas_perivent', l: 'Discretas periventriculares' },
-                    { v: 'confluentes', l: 'Confluentes' },
-                    { v: 'extensas', l: 'Extensas' },
-                    { v: 'inespecificas', l: 'Inespecíficas' },
-                  ].map(o => (
-                    <Chk key={o.v} checked={sbPronto === o.v} onChange={checked => setSbPronto(checked ? o.v : '')} label={o.l} />
-                  ))}
-                </div>
-              )}
-
-              {sbMode === 'construir' && (
-                <div className="space-y-1">
-                  <Radio value={sbIntensidade} onChange={setSbIntensidade} label="Intensidade"
-                    options={[{ v: '' as any, l: 'Padrão' }, { v: 'discretas', l: 'Discretas' }, { v: 'extensas', l: 'Extensas' }]} />
-                  <Chk checked={sbConfluentes} onChange={setSbConfluentes} label="Confluentes" />
-                  <Chk checked={sbCornAnt} onChange={setSbCornAnt} label="Cornos anteriores" />
-                  <Chk checked={sbAtrios} onChange={setSbAtrios} label="Átrios" />
-                  <Chk checked={sbCentrosSO} onChange={setSbCentrosSO} label="Centros semi-ovais" />
-                  <Chk checked={sbDifusas} onChange={setSbDifusas} label="Difusas" />
-                  <Chk checked={sbEsparsas} onChange={setSbEsparsas} label="Esparsas" />
-                  <Chk checked={sbCorRad} onChange={setSbCorRad} label="Coroas radiadas" />
-                  <Chk checked={sbSubcort} onChange={setSbSubcort} label="Subcortical" />
-                  <Chk checked={sbMaisRaras} onChange={setSbMaisRaras} label="Mais raras" />
-                  <Chk checked={sbRegFP} onChange={setSbRegFP} label="Regiões frontoparietais subcorticais" />
-                  <Chk checked={sbSubins} onChange={setSbSubins} label="Regiões subinsulares" />
-                </div>
-              )}
-            </div>
-          </Section>
-
-          {/* Comentário 2 */}
-          <Section title="Comentário Adicional" defaultOpen={false}>
-            <Txt value={comentario2} onChange={setComentario2} placeholder="Texto livre entre SB e EPVA..." rows={2} />
-          </Section>
-
-          {/* Lacunas / EPVA */}
-          <Section title="Lacunas / Espaços Perivasculares" defaultOpen={false}>
-            <div className="space-y-2">
-              <Radio value={epvaQtd} onChange={setEpvaQtd} label="Quantidade"
-                options={[{ v: '' as any, l: 'Sem' }, { v: 'focos', l: 'Focos' }, { v: 'alguns', l: 'Alguns' }, { v: 'multiplos', l: 'Múltiplos' }]} />
-              {epvaQtd && (
-                <div className="grid grid-cols-2 gap-x-4">
-                  <Chk checked={epvaCentrosSO} onChange={setEpvaCentrosSO} label="Centros semi-ovais" />
-                  <Chk checked={epvaNLent} onChange={setEpvaNLent} label="Núcleos lentiformes" />
-                  <Chk checked={epvaCauD} onChange={setEpvaCauD} label="Caudado D" />
-                  <Chk checked={epvaCauE} onChange={setEpvaCauE} label="Caudado E" />
-                  <Chk checked={epvaCapIntD} onChange={setEpvaCapIntD} label="Cáps. interna D" />
-                  <Chk checked={epvaCapIntE} onChange={setEpvaCapIntE} label="Cáps. interna E" />
-                  <Chk checked={epvaTalD} onChange={setEpvaTalD} label="Tálamo D" />
-                  <Chk checked={epvaTalE} onChange={setEpvaTalE} label="Tálamo E" />
-                  <Chk checked={epvaInfPut} onChange={setEpvaInfPut} label="Infraputaminais" />
-                  <Chk checked={epvaSubins} onChange={setEpvaSubins} label="Subinsulares" />
-                  <Chk checked={epvaMesenc} onChange={setEpvaMesenc} label="Mesencéfalo" />
-                  <Chk checked={epvaPont} onChange={setEpvaPont} label="Ponte" />
-                </div>
-              )}
-              <Chk checked={lacunas} onChange={setLacunas} label="Lacunas" />
-            </div>
-          </Section>
-
-          {/* Cerebelo */}
-          <Section title="Cerebelo" defaultOpen={false}>
-            <div className="space-y-1">
-              {[
-                { v: 'seq_dir', l: 'Sequela / fissura alargada — hemisfério D' },
-                { v: 'seq_esq', l: 'Sequela / fissura alargada — hemisfério E' },
-                { v: 'seq_bilat', l: 'Sequelas bilaterais' },
-                { v: 'faixa_dir', l: 'Faixa alongada — hemisfério D' },
-                { v: 'faixa_esq', l: 'Faixa alongada — hemisfério E' },
-                { v: 'faixas_bilat', l: 'Faixas bilaterais' },
-              ].map(o => (
-                <Chk key={o.v} checked={cerebelo === o.v} onChange={c => setCerebelo(c ? o.v : '')} label={o.l} />
-              ))}
-            </div>
-          </Section>
-
-          {/* Hipocampos */}
-          <Section title="Hipocampos" defaultOpen={false}>
-            <div className="space-y-1">
-              {[
-                { v: 'normais', l: 'Normais' },
-                { v: 'red_prop', l: 'Reduzidos proporcionalmente' },
-                { v: 'alt_bilat', l: 'Alterados bilateral' },
-                { v: 'alt_dir', l: 'Alterado à direita' },
-                { v: 'alt_esq', l: 'Alterado à esquerda' },
-                { v: 'ehm_bilat', l: 'EHM bilateral (variante)' },
-                { v: 'ehm_dir', l: 'EHM à direita (variante)' },
-                { v: 'ehm_esq', l: 'EHM à esquerda (variante)' },
-              ].map(o => (
-                <Chk key={o.v} checked={hipocampos === o.v} onChange={c => setHipocampos(c ? o.v : '')} label={o.l} />
-              ))}
-            </div>
-          </Section>
-
-          {/* Comentário 3 + Restrição/Lesões */}
-          <Section title="Parênquima / Difusão" defaultOpen={false}>
-            <div className="space-y-2">
-              <Chk checked={restricaoDif} onChange={setRestricaoDif} label="Sem restrição à difusão" />
-              <Chk checked={lesoesContrast} onChange={setLesoesContrast} label="Sem lesões expansivas ou realce anômalo" />
-              <Chk checked={parenquimaNormal} onChange={setParenquimaNormal} label="Encéfalo normal (laudo normal)" />
-              <Txt value={comentario3} onChange={setComentario3} placeholder="Comentário livre..." rows={2} />
-            </div>
-          </Section>
-
-          {/* Calcificações */}
-          <Section title="Calcificações" defaultOpen={false}>
-            <Chk checked={calcPalidais} onChange={setCalcPalidais} label="Calcificações palidais (habitual na faixa etária)" />
-            {exame === 'rm' && <Chk checked={sbstParamag} onChange={setSbstParamag} label="Hipossinal SWI nos lentiformes (depósito minerais)" />}
-          </Section>
-
-          {/* Hiperostose */}
-          <Section title="Hiperostose" defaultOpen={false}>
-            <Chk checked={hipFrontal} onChange={setHipFrontal} label="Frontal" />
-            <Chk checked={hipParietal} onChange={setHipParietal} label="Parietal" />
-          </Section>
-
-          {/* Sela túrcica */}
-          <Section title="Sela Túrcica / HIC" defaultOpen={false}>
-            <div className="space-y-1">
-              <Chk checked={selaVazia} onChange={setSelaVazia} label="Sela parcialmente vazia" />
-              {selaVazia && <Chk checked={selaPacIdoso} onChange={setSelaPacIdoso} label="Achado frequente na faixa etária" indent={1} />}
-              <Chk checked={nervosOpt} onChange={setNervosOpt} label="Ingurgitamento bainhas dos nervos ópticos" />
-              <Chk checked={seiosVenAfilados} onChange={setSeiosVenAfilados} label="Seios venosos afilados" />
-              <Chk checked={cavosMeckel} onChange={setCavosMeckel} label="Cavos de Meckel amplos" />
-              <Chk checked={iiiVentrFenda} onChange={setIiiVentrFenda} label="III ventrículo em fenda" />
-              <Chk checked={hicBenigna} onChange={setHicBenigna} label="Achados podem ser encontrados na HIC benigna idiopática" />
-            </div>
-          </Section>
-
-          {/* Ossos */}
-          <Section title="Ossos da Calota" defaultOpen={false}>
-            <Chk checked={ossosNormal} onChange={setOssosNormal} label="Normal" />
-            <Txt value={lesaoOssea} onChange={setLesaoOssea} placeholder="Lesão óssea (texto livre)..." />
-          </Section>
-
-          {/* SPN */}
-          <Section title="Seios Paranasais" defaultOpen={false}>
-            <div className="space-y-3">
-              <Chk checked={spnNormal} onChange={setSpnNormal} label="Normal (aeração preservada)" />
-              {!spnNormal && SEIOS.map(seio => (
-                <div key={seio.id} className="rounded-lg border p-2" style={{ borderColor: 'var(--border)' }}>
-                  <span className="text-[11px] font-bold block mb-1" style={{ color: 'var(--text2)' }}>{seio.label}</span>
-                  <div className="grid grid-cols-2 gap-x-4 gap-y-0">
-                    <span className="text-[9px] font-bold uppercase" style={{ color: 'var(--text3)' }}>Direita</span>
-                    <span className="text-[9px] font-bold uppercase" style={{ color: 'var(--text3)' }}>Esquerda</span>
-                    {([
-                      ['espessamento', 'Espessamento mucoso'],
-                      ['espessamentoDiscreto', 'Espessamento discreto'],
-                      ['contornosLob', 'Contornos lobulados'],
-                      ['paredesEsp', 'Paredes espessadas'],
-                      ['calcMucosas', 'Calcificações mucosas'],
-                      ['secrecaoPeqQtd', 'Secreção peq. qtd.'],
-                      ['secrecaoOblit', 'Secreção obliterante'],
-                      ['nivelLiquido', 'Nível líquido'],
-                      ['compHiperdenso', 'Comp. hiperdenso'],
-                    ] as const).map(([key, label]) => (
-                      <div key={key} className="contents">
-                        <Chk checked={spn[seio.id as keyof typeof spn].dir[key]} onChange={v => updateSPN(seio.id, 'dir', key, v)} label={label} />
-                        <Chk checked={spn[seio.id as keyof typeof spn].esq[key]} onChange={v => updateSPN(seio.id, 'esq', key, v)} label={label} />
-                      </div>
+            {/* Substância branca */}
+            <Section title="Substância Branca" defaultOpen={false}>
+              <div className="space-y-2">
+                <Radio value={sbMode} onChange={setSbMode} label="Modo"
+                  options={[{ v: 'pronto', l: 'Frases prontas' }, { v: 'construir', l: 'Construir frase' }]} />
+                {sbMode === 'pronto' && (
+                  <div className="space-y-1">
+                    {[
+                      { v: 'tenues', l: 'Tênues (cornos anteriores)' },
+                      { v: 'discretas_perivent', l: 'Discretas periventriculares' },
+                      { v: 'confluentes', l: 'Confluentes' },
+                      { v: 'extensas', l: 'Extensas' },
+                      { v: 'inespecificas', l: 'Inespecíficas' },
+                    ].map(o => (
+                      <Chk key={o.v} checked={sbPronto === o.v} onChange={checked => setSbPronto(checked ? o.v : '')} label={o.l} />
                     ))}
                   </div>
-                </div>
-              ))}
-            </div>
-          </Section>
+                )}
+                {sbMode === 'construir' && (
+                  <div className="space-y-1">
+                    <Radio value={sbIntensidade} onChange={setSbIntensidade} label="Intensidade"
+                      options={[{ v: '' as any, l: 'Padrão' }, { v: 'discretas', l: 'Discretas' }, { v: 'extensas', l: 'Extensas' }]} />
+                    <Chk checked={sbConfluentes} onChange={setSbConfluentes} label="Confluentes" />
+                    <Chk checked={sbCornAnt} onChange={setSbCornAnt} label="Cornos anteriores" />
+                    <Chk checked={sbAtrios} onChange={setSbAtrios} label="Átrios" />
+                    <Chk checked={sbCentrosSO} onChange={setSbCentrosSO} label="Centros semi-ovais" />
+                    <Chk checked={sbDifusas} onChange={setSbDifusas} label="Difusas" />
+                    <Chk checked={sbEsparsas} onChange={setSbEsparsas} label="Esparsas" />
+                    <Chk checked={sbCorRad} onChange={setSbCorRad} label="Coroas radiadas" />
+                    <Chk checked={sbSubcort} onChange={setSbSubcort} label="Subcortical" />
+                    <Chk checked={sbMaisRaras} onChange={setSbMaisRaras} label="Mais raras" />
+                    <Chk checked={sbRegFP} onChange={setSbRegFP} label="Regiões frontoparietais subcorticais" />
+                    <Chk checked={sbSubins} onChange={setSbSubins} label="Regiões subinsulares" />
+                  </div>
+                )}
+              </div>
+            </Section>
 
-          {/* Mastoides */}
-          <Section title="Mastoides" defaultOpen={false}>
-            <div className="space-y-1">
-              <Chk checked={mastoidesNormal} onChange={setMastoidesNormal} label="Aeradas (normal)" />
-              <Chk checked={mastHipopneuBilat} onChange={setMastHipopneuBilat} label="Hipopneumatizadas bilateral" />
-              {!mastHipopneuBilat && <>
-                <Chk checked={mastHipopneuDir} onChange={setMastHipopneuDir} label="Hipopneu. direita" indent={1} />
-                <Chk checked={mastHipopneuEsq} onChange={setMastHipopneuEsq} label="Hipopneu. esquerda" indent={1} />
-              </>}
-              <Chk checked={mastEburneo} onChange={setMastEburneo} label="Aspecto ebúrneo" />
-              <Chk checked={mastApiceDir} onChange={setMastApiceDir} label="Ápice hipopneu. direito" />
-              <Chk checked={mastApiceEsq} onChange={setMastApiceEsq} label="Ápice hipopneu. esquerdo" />
-              <Chk checked={mastOblit} onChange={setMastOblit} label="Obliteração por material partes moles" />
-              <Chk checked={mastDelineamento} onChange={setMastDelineamento} label="Delineamento por material hidratado" />
-              {mastDelineamento && <>
-                <Chk checked={mastDelineDir} onChange={setMastDelineDir} label="Direita" indent={1} />
-                <Chk checked={mastDelineEsq} onChange={setMastDelineEsq} label="Esquerda" indent={1} />
-                <Chk checked={mastNivelLiq} onChange={setMastNivelLiq} label="Com níveis líquidos" indent={1} />
-              </>}
-            </div>
-          </Section>
+            {/* Comentário 2 */}
+            <Section title="Comentário Adicional" defaultOpen={false}>
+              <Txt value={comentario2} onChange={setComentario2} placeholder="Texto livre entre SB e EPVA..." rows={2} />
+            </Section>
 
-          {/* Facectomia */}
-          <Section title="Achados Adicionais" defaultOpen={false}>
-            <Radio value={facectomia} onChange={setFacectomia} label="Facectomia"
-              options={[{ v: '' as any, l: 'Sem' }, { v: 'bilateral', l: 'Bilateral' }, { v: 'direita', l: 'Direita' }, { v: 'esquerda', l: 'Esquerda' }]} />
-          </Section>
+            {/* Lacunas / EPVA */}
+            <Section title="Lacunas / Espaços Perivasculares" defaultOpen={false}>
+              <div className="space-y-2">
+                <Radio value={epvaQtd} onChange={setEpvaQtd} label="Quantidade"
+                  options={[{ v: '' as any, l: 'Sem' }, { v: 'focos', l: 'Focos' }, { v: 'alguns', l: 'Alguns' }, { v: 'multiplos', l: 'Múltiplos' }]} />
+                {epvaQtd && (
+                  <div className="grid grid-cols-2 gap-x-4">
+                    <Chk checked={epvaCentrosSO} onChange={setEpvaCentrosSO} label="Centros semi-ovais" />
+                    <Chk checked={epvaNLent} onChange={setEpvaNLent} label="Núcleos lentiformes" />
+                    <Chk checked={epvaCauD} onChange={setEpvaCauD} label="Caudado D" />
+                    <Chk checked={epvaCauE} onChange={setEpvaCauE} label="Caudado E" />
+                    <Chk checked={epvaCapIntD} onChange={setEpvaCapIntD} label="Cáps. interna D" />
+                    <Chk checked={epvaCapIntE} onChange={setEpvaCapIntE} label="Cáps. interna E" />
+                    <Chk checked={epvaTalD} onChange={setEpvaTalD} label="Tálamo D" />
+                    <Chk checked={epvaTalE} onChange={setEpvaTalE} label="Tálamo E" />
+                    <Chk checked={epvaInfPut} onChange={setEpvaInfPut} label="Infraputaminais" />
+                    <Chk checked={epvaSubins} onChange={setEpvaSubins} label="Subinsulares" />
+                    <Chk checked={epvaMesenc} onChange={setEpvaMesenc} label="Mesencéfalo" />
+                    <Chk checked={epvaPont} onChange={setEpvaPont} label="Ponte" />
+                  </div>
+                )}
+                <Chk checked={lacunas} onChange={setLacunas} label="Lacunas" />
+              </div>
+            </Section>
 
-          {/* Angio — vasos */}
-          {angioMode && (
-            <Section title={`Angio Arterial — Vasos`} defaultOpen>
+            {/* Cerebelo */}
+            <Section title="Cerebelo" defaultOpen={false}>
+              <div className="space-y-1">
+                {[
+                  { v: 'seq_dir', l: 'Sequela / fissura alargada — hemisfério D' },
+                  { v: 'seq_esq', l: 'Sequela / fissura alargada — hemisfério E' },
+                  { v: 'seq_bilat', l: 'Sequelas bilaterais' },
+                  { v: 'faixa_dir', l: 'Faixa alongada — hemisfério D' },
+                  { v: 'faixa_esq', l: 'Faixa alongada — hemisfério E' },
+                  { v: 'faixas_bilat', l: 'Faixas bilaterais' },
+                ].map(o => (
+                  <Chk key={o.v} checked={cerebelo === o.v} onChange={c => setCerebelo(c ? o.v : '')} label={o.l} />
+                ))}
+              </div>
+            </Section>
+
+            {/* Hipocampos */}
+            <Section title="Hipocampos" defaultOpen={false}>
+              <div className="space-y-1">
+                {[
+                  { v: 'normais', l: 'Normais' },
+                  { v: 'red_prop', l: 'Reduzidos proporcionalmente' },
+                  { v: 'alt_bilat', l: 'Alterados bilateral' },
+                  { v: 'alt_dir', l: 'Alterado à direita' },
+                  { v: 'alt_esq', l: 'Alterado à esquerda' },
+                  { v: 'ehm_bilat', l: 'EHM bilateral (variante)' },
+                  { v: 'ehm_dir', l: 'EHM à direita (variante)' },
+                  { v: 'ehm_esq', l: 'EHM à esquerda (variante)' },
+                ].map(o => (
+                  <Chk key={o.v} checked={hipocampos === o.v} onChange={c => setHipocampos(c ? o.v : '')} label={o.l} />
+                ))}
+              </div>
+            </Section>
+
+            {/* Parênquima / Difusão + Comentário 3 */}
+            <Section title="Parênquima / Difusão" defaultOpen={false}>
+              <Txt value={comentario3} onChange={setComentario3} placeholder="Comentário livre..." rows={2} />
+            </Section>
+
+            {/* Calcificações */}
+            <Section title="Calcificações" defaultOpen={false}>
+              <Chk checked={calcPalidais} onChange={setCalcPalidais} label="Calcificações palidais (habitual na faixa etária)" />
+              {exame === 'rm' && <Chk checked={sbstParamag} onChange={setSbstParamag} label="Hipossinal SWI nos lentiformes (depósito minerais)" />}
+            </Section>
+
+            {/* Hiperostose */}
+            <Section title="Hiperostose" defaultOpen={false}>
+              <Chk checked={hipFrontal} onChange={setHipFrontal} label="Frontal" />
+              <Chk checked={hipParietal} onChange={setHipParietal} label="Parietal" />
+            </Section>
+
+            {/* Sela túrcica */}
+            <Section title="Sela Túrcica / HIC" defaultOpen={false}>
+              <div className="space-y-1">
+                <Chk checked={selaVazia} onChange={setSelaVazia} label="Sela parcialmente vazia" />
+                {selaVazia && <Chk checked={selaPacIdoso} onChange={setSelaPacIdoso} label="Achado frequente na faixa etária" indent={1} />}
+                <Chk checked={nervosOpt} onChange={setNervosOpt} label="Ingurgitamento bainhas dos nervos ópticos" />
+                <Chk checked={seiosVenAfilados} onChange={setSeiosVenAfilados} label="Seios venosos afilados" />
+                <Chk checked={cavosMeckel} onChange={setCavosMeckel} label="Cavos de Meckel amplos" />
+                <Chk checked={iiiVentrFenda} onChange={setIiiVentrFenda} label="III ventrículo em fenda" />
+                <Chk checked={hicBenigna} onChange={setHicBenigna} label="Achados podem ser encontrados na HIC benigna idiopática" />
+              </div>
+            </Section>
+
+            {/* Ossos */}
+            <Section title="Ossos da Calota" defaultOpen={false}>
+              <Txt value={lesaoOssea} onChange={setLesaoOssea} placeholder="Lesão óssea (texto livre)..." />
+            </Section>
+
+            {/* SPN */}
+            <Section title="Seios Paranasais" defaultOpen={false}>
+              <div className="space-y-3">
+                <Chk checked={spnNormal} onChange={setSpnNormal} label="Normal (aeração preservada)" />
+                {!spnNormal && SEIOS.map(seio => (
+                  <div key={seio.id} className="rounded-lg border p-2" style={{ borderColor: 'var(--border)' }}>
+                    <span className="text-[11px] font-bold block mb-1" style={{ color: 'var(--text2)' }}>{seio.label}</span>
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-0">
+                      <span className="text-[9px] font-bold uppercase" style={{ color: 'var(--text3)' }}>Direita</span>
+                      <span className="text-[9px] font-bold uppercase" style={{ color: 'var(--text3)' }}>Esquerda</span>
+                      {([
+                        ['espessamento', 'Espessamento mucoso'],
+                        ['espessamentoDiscreto', 'Espessamento discreto'],
+                        ['contornosLob', 'Contornos lobulados'],
+                        ['paredesEsp', 'Paredes espessadas'],
+                        ['calcMucosas', 'Calcificações mucosas'],
+                        ['secrecaoPeqQtd', 'Secreção peq. qtd.'],
+                        ['secrecaoOblit', 'Secreção obliterante'],
+                        ['nivelLiquido', 'Nível líquido'],
+                        ['compHiperdenso', 'Comp. hiperdenso'],
+                      ] as const).map(([key, label]) => (
+                        <div key={key} className="contents">
+                          <Chk checked={spn[seio.id as keyof typeof spn].dir[key]} onChange={v => updateSPN(seio.id, 'dir', key, v)} label={label} />
+                          <Chk checked={spn[seio.id as keyof typeof spn].esq[key]} onChange={v => updateSPN(seio.id, 'esq', key, v)} label={label} />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Section>
+
+            {/* Mastoides */}
+            <Section title="Mastoides" defaultOpen={false}>
+              <div className="space-y-1">
+                <Chk checked={mastoidesNormal} onChange={setMastoidesNormal} label="Aeradas (normal)" />
+                <Chk checked={mastHipopneuBilat} onChange={setMastHipopneuBilat} label="Hipopneumatizadas bilateral" />
+                {!mastHipopneuBilat && <>
+                  <Chk checked={mastHipopneuDir} onChange={setMastHipopneuDir} label="Hipopneu. direita" indent={1} />
+                  <Chk checked={mastHipopneuEsq} onChange={setMastHipopneuEsq} label="Hipopneu. esquerda" indent={1} />
+                </>}
+                <Chk checked={mastEburneo} onChange={setMastEburneo} label="Aspecto ebúrneo" />
+                <Chk checked={mastApiceDir} onChange={setMastApiceDir} label="Ápice hipopneu. direito" />
+                <Chk checked={mastApiceEsq} onChange={setMastApiceEsq} label="Ápice hipopneu. esquerdo" />
+                <Chk checked={mastOblit} onChange={setMastOblit} label="Obliteração por material partes moles" />
+                <Chk checked={mastDelineamento} onChange={setMastDelineamento} label="Delineamento por material hidratado" />
+                {mastDelineamento && <>
+                  <Chk checked={mastDelineDir} onChange={setMastDelineDir} label="Direita" indent={1} />
+                  <Chk checked={mastDelineEsq} onChange={setMastDelineEsq} label="Esquerda" indent={1} />
+                  <Chk checked={mastNivelLiq} onChange={setMastNivelLiq} label="Com níveis líquidos" indent={1} />
+                </>}
+              </div>
+            </Section>
+
+            {/* Facectomia */}
+            <Section title="Achados Adicionais" defaultOpen={false}>
+              <Radio value={facectomia} onChange={setFacectomia} label="Facectomia"
+                options={[{ v: '' as any, l: 'Sem' }, { v: 'bilateral', l: 'Bilateral' }, { v: 'direita', l: 'Direita' }, { v: 'esquerda', l: 'Esquerda' }]} />
+            </Section>
+          </>}
+
+          {/* ── ANGIO ARTERIAL ── */}
+          {temAngioArterial && (
+            <Section title={`Angio Arterial${angioCervical && angioIntra ? ' (Cervical + Intracraniana)' : angioCervical ? ' (Cervical)' : ' (Intracraniana)'}`} defaultOpen>
               <div className="space-y-3">
                 <Radio value={angioGeral} onChange={setAngioGeral} label="Achado geral"
                   options={[
@@ -1149,7 +1210,7 @@ export default function NeuroReport() {
                         <select value={v.vaso} onChange={e => updateVaso(i, { vaso: e.target.value })}
                           className="w-full px-2 py-1 rounded text-[11px] border" style={{ backgroundColor: 'var(--surface2)', borderColor: 'var(--border)', color: 'var(--text)' }}>
                           <option value="">Selecione...</option>
-                          {(angioMode === 'cervical' ? VASOS_CERVICAIS : angioMode === 'intracraniana' ? VASOS_INTRACRANIANOS : [...VASOS_CERVICAIS, ...VASOS_INTRACRANIANOS]).map(vn => (
+                          {vasosDisponiveis.map(vn => (
                             <option key={vn} value={vn}>{vn}</option>
                           ))}
                         </select>
@@ -1229,8 +1290,8 @@ export default function NeuroReport() {
             </Section>
           )}
 
-          {/* Angio venosa */}
-          {angioVenosa && (
+          {/* ── ANGIO VENOSA ── */}
+          {angioVen && (
             <Section title="Angio Venosa" defaultOpen>
               <div className="space-y-1">
                 <Chk checked={venNormal} onChange={setVenNormal} label="Seios venosos pérvios, normais" />
@@ -1244,56 +1305,80 @@ export default function NeuroReport() {
           )}
         </div>
 
-        {/* RIGHT — Output panel */}
-        <div className="lg:sticky lg:top-16 space-y-3">
-          {/* Título */}
-          <div className="rounded-xl border p-3" style={{ borderColor: 'var(--accent)', backgroundColor: 'var(--accent)08' }}>
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--accent)' }}>Título</span>
-              <button type="button" onClick={() => copyText(titulo, 'titulo')}
-                className="text-[10px] px-2 py-0.5 rounded border" style={{ borderColor: 'var(--border)', color: copied === 'titulo' ? 'var(--green)' : 'var(--text3)' }}>
-                {copied === 'titulo' ? 'Copiado!' : 'Copiar'}
-              </button>
-            </div>
-            <p className="text-xs font-bold" style={{ color: 'var(--text)' }}>{titulo}</p>
+        {/* ═══════════════════════════════════════════════════════
+            RIGHT — Document-style output panel
+            ═══════════════════════════════════════════════════════ */}
+        <div className="lg:sticky lg:top-20 space-y-3">
+          {/* Action buttons */}
+          <div className="flex gap-2">
+            <button type="button" onClick={() => copyRich(fullText, 'tudo')}
+              className="flex-1 py-2.5 rounded-xl text-sm font-bold transition-all"
+              style={{
+                backgroundColor: copied === 'tudo' ? 'var(--green)' : 'var(--accent)',
+                color: '#fff',
+              }}>
+              {copied === 'tudo' ? 'Copiado!' : 'Copiar Laudo Completo'}
+            </button>
+            <button type="button" onClick={() => copyRich(textoAchados, 'achados')}
+              className="px-4 py-2.5 rounded-xl text-xs font-semibold border transition-all"
+              style={{ borderColor: 'var(--border)', color: copied === 'achados' ? 'var(--green)' : 'var(--text2)' }}>
+              {copied === 'achados' ? 'Copiado!' : 'Achados'}
+            </button>
+            <button type="button" onClick={() => copyRich(textoTecnica, 'tecnica')}
+              className="px-4 py-2.5 rounded-xl text-xs font-semibold border transition-all"
+              style={{ borderColor: 'var(--border)', color: copied === 'tecnica' ? 'var(--green)' : 'var(--text2)' }}>
+              {copied === 'tecnica' ? 'Copiado!' : 'Técnica'}
+            </button>
           </div>
 
-          {/* Técnica */}
-          <div className="rounded-xl border p-3" style={{ borderColor: 'var(--border)' }}>
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--text3)' }}>Técnica</span>
-              <button type="button" onClick={() => copyText(textoTecnica, 'tecnica')}
-                className="text-[10px] px-2 py-0.5 rounded border" style={{ borderColor: 'var(--border)', color: copied === 'tecnica' ? 'var(--green)' : 'var(--text3)' }}>
-                {copied === 'tecnica' ? 'Copiado!' : 'Copiar'}
-              </button>
+          {/* Document preview */}
+          <div ref={laudoRef}
+            className="rounded-xl border shadow-lg overflow-hidden"
+            style={{ backgroundColor: '#fff' }}>
+            {/* Document body */}
+            <div className="px-8 py-8 sm:px-10 sm:py-10"
+              style={{ fontFamily: "'Calibri', 'Arial', sans-serif", fontSize: '11pt', lineHeight: 1.5, color: '#1a1a1a' }}>
+              {/* Title */}
+              <p style={{ fontWeight: 700, fontSize: '12pt', textAlign: 'center', marginBottom: '16pt', letterSpacing: '0.5px' }}>
+                {titulo.split('\n').map((line, i) => (
+                  <span key={i}>{line}{i < titulo.split('\n').length - 1 && <br />}</span>
+                ))}
+              </p>
+
+              {/* Técnica */}
+              <p style={{ fontWeight: 700, fontSize: '11pt', marginBottom: '4pt', color: '#333' }}>TÉCNICA:</p>
+              {textoTecnica.split('\n').map((line, i) => (
+                <p key={i} style={{ marginBottom: '4pt', textAlign: 'justify' }}>{line}</p>
+              ))}
+
+              <div style={{ height: '10pt' }} />
+
+              {/* Achados */}
+              <p style={{ fontWeight: 700, fontSize: '11pt', marginBottom: '4pt', color: '#333' }}>ACHADOS:</p>
+              {textoAchados ? textoAchados.split('\n').map((line, i) => {
+                if (!line.trim()) return <div key={i} style={{ height: '6pt' }} />
+                return <p key={i} style={{ marginBottom: '4pt', textAlign: 'justify' }}>{line}</p>
+              }) : (
+                <p style={{ color: '#999', fontStyle: 'italic' }}>Selecione os achados nas seções ao lado...</p>
+              )}
+
+              {/* Normal indicator */}
+              {temCranio && !hasCranioSelections && (
+                <div style={{ marginTop: '12pt', padding: '6pt 10pt', backgroundColor: '#f0f9f0', borderRadius: '6px', border: '1px solid #c8e6c9' }}>
+                  <p style={{ fontSize: '9pt', color: '#2e7d32', fontWeight: 600, margin: 0 }}>
+                    Laudo normal — nenhum achado patológico selecionado
+                  </p>
+                </div>
+              )}
             </div>
-            <p className="text-xs leading-relaxed whitespace-pre-wrap" style={{ color: 'var(--text2)' }}>{textoTecnica}</p>
           </div>
 
-          {/* Achados */}
-          <div className="rounded-xl border p-3" style={{ borderColor: 'var(--border)' }}>
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--text3)' }}>Achados</span>
-              <button type="button" onClick={() => copyText(textoAchados, 'achados')}
-                className="text-[10px] px-2 py-0.5 rounded border" style={{ borderColor: 'var(--border)', color: copied === 'achados' ? 'var(--green)' : 'var(--text3)' }}>
-                {copied === 'achados' ? 'Copiado!' : 'Copiar'}
-              </button>
-            </div>
-            <p className="text-xs leading-relaxed whitespace-pre-wrap" style={{ color: 'var(--text2)' }}>
-              {textoAchados || <span style={{ color: 'var(--text3)' }}>Selecione os achados nas seções à esquerda...</span>}
-            </p>
+          {/* Quick info */}
+          <div className="rounded-lg p-2 text-center" style={{ backgroundColor: 'var(--surface2)' }}>
+            <span className="text-[10px]" style={{ color: 'var(--text3)' }}>
+              O laudo é copiado em formato rico (Calibri 11pt) compatível com Word e Google Docs
+            </span>
           </div>
-
-          {/* Copiar tudo */}
-          <button type="button" onClick={() => copyText(fullText, 'tudo')}
-            className="w-full py-2.5 rounded-xl text-sm font-bold border transition-all"
-            style={{
-              backgroundColor: copied === 'tudo' ? 'var(--green)' : 'var(--accent)',
-              borderColor: copied === 'tudo' ? 'var(--green)' : 'var(--accent)',
-              color: '#fff',
-            }}>
-            {copied === 'tudo' ? 'Copiado!' : 'Copiar Laudo Completo'}
-          </button>
         </div>
       </div>
     </CalculatorLayout>
